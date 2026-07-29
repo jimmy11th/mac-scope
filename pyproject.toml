@@ -1,0 +1,34 @@
+[project]
+name = "macscope"
+version = "0.1.0"
+description = "A focused macOS system monitor and process manager"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "psutil>=6.1",
+    "send2trash>=1.8.3",
+    "textual>=1.0",
+]
+
+[project.urls]
+Repository = "https://github.com/shenmuoso/great-mac-scope"
+
+[project.scripts]
+macscope = "macscope.app:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
