@@ -53,6 +53,29 @@ uv tool install .
 macscope
 ```
 
+## Native shell prototype
+
+The phase-one macOS shell keeps the Textual interface intact while hosting it in a
+standard AppKit window backed by a SwiftTerm pseudo-terminal. It is a development
+prototype: it launches the repository through `uv` and does not yet bundle Python or
+request elevated permissions.
+
+Build and open the application with:
+
+```bash
+native/scripts/run_app.sh
+```
+
+Run the native launch-configuration checks with:
+
+```bash
+swift run --package-path native MacScopeShellConfigCheck
+```
+
+The generated ad-hoc-signed application is written to
+`native/build/MacScope.app`. Set `MACSCOPE_UV_PATH` before building when `uv` is not on
+the current `PATH`. The shell never opens Terminal.app.
+
 ## Keyboard
 
 | Key | Action |

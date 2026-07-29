@@ -9,3 +9,6 @@ dist/
 *.egg-info/
 outputs/
 work/
+native/.build/
+native/.swiftpm/
+native/build/
