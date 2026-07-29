@@ -127,6 +127,7 @@ public struct LaunchConfiguration: Equatable {
     homeDirectoryURL: URL
   ) -> [String] {
     var environment = source
+    environment.removeValue(forKey: "NO_COLOR")
     environment["TERM"] = "xterm-256color"
     environment["COLORTERM"] = "truecolor"
     environment["PYTHONUNBUFFERED"] = "1"

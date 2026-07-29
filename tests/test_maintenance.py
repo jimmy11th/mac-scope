@@ -79,6 +79,33 @@ def test_trash_mode_sends_cache_to_trash(tmp_path, monkeypatch) -> None:
     assert trashed == [str(item.path)]
 
 
+def test_cleanup_reports_current_item_and_determinate_progress(tmp_path, monkeypatch) -> None:
+    logs = tmp_path / "Library/Logs"
+    write_bytes(logs / "first.log", 16)
+    write_bytes(logs / "second.log", 16)
+    service = MaintenanceService(home=tmp_path)
+    items = service.scan_junk().items
+    events: list[tuple[int, int, str, str]] = []
+    monkeypatch.setattr("macscope.maintenance.send2trash", lambda path: None)
+
+    result = service.cleanup(
+        items,
+        progress=lambda completed, total, item, state: events.append(
+            (completed, total, item.name, state)
+        ),
+    )
+
+    assert result.trashed == items
+    assert events[0] == (0, 2, items[0].name, "processing")
+    assert events[-1] == (2, 2, items[-1].name, "trashed")
+    assert [event[3] for event in events] == [
+        "processing",
+        "trashed",
+        "processing",
+        "trashed",
+    ]
+
+
 def test_configured_external_scan_root_can_be_cleaned(tmp_path, monkeypatch) -> None:
     home = tmp_path / "home"
     external = tmp_path / "external"
@@ -125,6 +152,34 @@ def test_application_residues_require_exact_bundle_identifier(tmp_path, monkeypa
     residue = next(item for item in result.items if item.path == exact)
     assert residue.parent_id == app_item.id
     assert residue.category_key == "maintenance.category.app_cache"
+
+
+def test_application_copy_detection_includes_registered_external_builds(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    applications = tmp_path / "Applications"
+    installed = applications / "Example.app"
+    external = tmp_path / "workspace/Example.app"
+    trashed = tmp_path / ".Trash/Example.app"
+    for app_path in (installed, external, trashed):
+        info = app_path / "Contents/Info.plist"
+        info.parent.mkdir(parents=True)
+        with info.open("wb") as handle:
+            plistlib.dump({"CFBundleIdentifier": "com.example.Example"}, handle)
+    service = MaintenanceService(home=tmp_path, application_roots=(applications,))
+    monkeypatch.setattr(
+        service,
+        "_spotlight_application_paths",
+        lambda bundle_id: (installed, external, trashed),
+    )
+
+    copies = service.find_application_copies(
+        "com.example.Example",
+        excluding=installed,
+    )
+
+    assert copies == (external.absolute(),)
 
 
 def test_running_application_is_blocked(tmp_path, monkeypatch) -> None:

@@ -17,7 +17,10 @@ def test_builtin_themes_are_complete_and_readable(tmp_path) -> None:
     for theme_id in BUILTIN_THEMES:
         colors = repository.resolved_colors(theme_id)
         assert contrast_ratio(colors["text"], colors["background"]) >= 4.5
-        assert repository.textual_theme(theme_id).name == f"macscope-{theme_id}"
+        theme = repository.textual_theme(theme_id)
+        assert theme.name == f"macscope-{theme_id}"
+        assert theme.variables["block-cursor-background"] == colors["selection_background"]
+        assert theme.variables["block-cursor-text-style"] == "none"
 
 
 def test_import_resolves_inheritance_before_writing(tmp_path) -> None:

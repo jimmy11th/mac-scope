@@ -103,6 +103,7 @@ class CleanupValidationError(Exception):
 
 
 ProgressCallback = Callable[[int, str], None]
+CleanupProgressCallback = Callable[[int, int, MaintenanceItem, str], None]
 
 PACKAGE_SUFFIXES = {
     ".app",
@@ -343,14 +344,29 @@ class MaintenanceService:
         items: Iterable[MaintenanceItem],
         *,
         cache_mode: str = "trash",
+        progress: CleanupProgressCallback | None = None,
     ) -> CleanupResult:
         deleted: list[MaintenanceItem] = []
         trashed: list[MaintenanceItem] = []
         failures: list[CleanupFailure] = []
-        candidates: list[MaintenanceItem] = []
-        selected = list(items)
+        selected = sorted(
+            items,
+            key=lambda item: item.kind is not MaintenanceKind.APPLICATION,
+        )
         failed_parents: set[str] = set()
-        for item in selected:
+        total = len(selected)
+        for index, item in enumerate(selected, start=1):
+            self._report_cleanup(progress, index - 1, total, item, "processing")
+            if item.parent_id and item.parent_id in failed_parents:
+                failures.append(
+                    CleanupFailure(
+                        item,
+                        CleanupFailureCode.PARENT_FAILED,
+                        "application was not uninstalled",
+                    )
+                )
+                self._report_cleanup(progress, index, total, item, "skipped")
+                continue
             try:
                 self._validate_cleanup_item(item)
                 if item.kind is MaintenanceKind.APPLICATION and self._application_running(
@@ -360,42 +376,56 @@ class MaintenanceService:
                         CleanupFailureCode.RUNNING,
                         "application is running",
                     )
-                candidates.append(item)
-            except CleanupValidationError as exc:
-                failures.append(CleanupFailure(item, exc.code, str(exc)))
-                if item.kind is MaintenanceKind.APPLICATION:
-                    failed_parents.add(item.id)
-            except OSError as exc:
-                failure = self._classify_os_error(item, exc)
-                failures.append(failure)
-                if item.kind is MaintenanceKind.APPLICATION:
-                    failed_parents.add(item.id)
-
-        candidates.sort(key=lambda item: item.kind is not MaintenanceKind.APPLICATION)
-        for item in candidates:
-            if item.parent_id and item.parent_id in failed_parents:
-                failures.append(
-                    CleanupFailure(
-                        item,
-                        CleanupFailureCode.PARENT_FAILED,
-                        "application was not uninstalled",
-                    )
-                )
-                continue
-            try:
                 permanent = cache_mode == "delete" and item.kind in PERMANENT_CACHE_KINDS
                 if permanent:
                     self._delete_path(item.path)
                     deleted.append(item)
+                    state = "deleted"
                 else:
                     send2trash(str(item.path))
                     trashed.append(item)
+                    state = "trashed"
+            except CleanupValidationError as exc:
+                failures.append(CleanupFailure(item, exc.code, str(exc)))
+                state = "failed"
             except OSError as exc:
                 failure = self._classify_os_error(item, exc)
                 failures.append(failure)
-                if item.kind is MaintenanceKind.APPLICATION:
-                    failed_parents.add(item.id)
+                state = "failed"
+            if state == "failed" and item.kind is MaintenanceKind.APPLICATION:
+                failed_parents.add(item.id)
+            self._report_cleanup(progress, index, total, item, state)
         return CleanupResult(tuple(deleted), tuple(trashed), tuple(failures))
+
+    def find_application_copies(
+        self,
+        bundle_id: str,
+        *,
+        excluding: Path | None = None,
+    ) -> tuple[Path, ...]:
+        if not bundle_id:
+            return ()
+        candidates = list(self._application_paths(None))
+        candidates.extend(self._spotlight_application_paths(bundle_id))
+        copies: list[Path] = []
+        for candidate in candidates:
+            candidate = candidate.expanduser().absolute()
+            if ".Trash" in candidate.parts or not candidate.is_dir():
+                continue
+            if excluding is not None:
+                try:
+                    if candidate.samefile(excluding):
+                        continue
+                except OSError:
+                    if candidate == excluding.expanduser().absolute():
+                        continue
+            try:
+                candidate_bundle_id, _ = self._application_metadata(candidate)
+            except (OSError, plistlib.InvalidFileException):
+                continue
+            if candidate_bundle_id == bundle_id and candidate not in copies:
+                copies.append(candidate)
+        return tuple(sorted(copies, key=lambda path: str(path).casefold()))
 
     @staticmethod
     def release_file_cache(timeout: float = 20.0) -> tuple[bool, str]:
@@ -483,6 +513,44 @@ class MaintenanceService:
             path.unlink()
         else:
             shutil.rmtree(path)
+
+    @staticmethod
+    def _spotlight_application_paths(bundle_id: str) -> tuple[Path, ...]:
+        mdfind = Path("/usr/bin/mdfind")
+        if not mdfind.is_file():
+            return ()
+        escaped = bundle_id.replace("\\", "\\\\").replace('"', '\\"')
+        try:
+            result = subprocess.run(
+                [str(mdfind), f'kMDItemCFBundleIdentifier == "{escaped}"'],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return ()
+        if result.returncode != 0:
+            return ()
+        return tuple(
+            Path(line)
+            for line in result.stdout.splitlines()
+            if line.strip().casefold().endswith(".app")
+        )
+
+    @staticmethod
+    def _report_cleanup(
+        progress: CleanupProgressCallback | None,
+        completed: int,
+        total: int,
+        item: MaintenanceItem,
+        state: str,
+    ) -> None:
+        if progress is not None:
+            try:
+                progress(completed, total, item, state)
+            except Exception:  # noqa: BLE001 - progress reporting must not stop cleanup.
+                return
 
     def _application_paths(self, cancel: threading.Event | None) -> tuple[Path, ...]:
         paths: list[Path] = []

@@ -15,8 +15,10 @@ process table and guarded macOS maintenance tools.
 - Guarded terminate, force-kill, pause, resume, and nice-priority actions
 - Junk scanning, application uninstall with exact Bundle ID residue detection, large-file
   and duplicate-file cleanup, and memory relief
-- App-centered uninstall workflow: related cache, preferences, saved state, application
-  data, and container data are selectable only after their owning app is selected
+- Single-application uninstall review with selectable related data, duplicate-copy
+  detection by Bundle ID, and an explicit warning when another runnable copy remains
+- Per-item cleanup paths, states, animated activity feedback, and determinate progress
+  remain visible after each cleanup operation
 - Responsive process/tools workspace with compact tabs
 - Runtime-adjustable Top process count, defaulting to five rows
 - Persistent language, refresh, row count, temperature, smoothing, interface, and
@@ -120,10 +122,12 @@ permanently, and set the large-file scan threshold. Applications, residues, larg
 duplicates, logs, and diagnostic reports always go to Trash. MacScope never empties the
 Trash, requests `sudo`, or terminates processes without confirmation.
 
-During application uninstall, the application is processed before its selected related
-data. If the application cannot be removed, its related data is left untouched. If the
-application succeeds but a related item fails, the completed application remains as a
-context row while each retained item shows its exact state and stays available for retry.
+Application uninstall is intentionally one app at a time. Selecting an app opens a review
+dialog containing the app, its Bundle ID, exact path, and selectable related data. MacScope
+also checks Spotlight for other registered copies with the same Bundle ID and warns when
+another copy will remain runnable. The application is processed before its selected data;
+if it cannot be removed, related data is left untouched. Every processed path keeps its
+exact success or failure state visible and failed items remain available for retry.
 
 Large-file and duplicate scans cover the current user's Downloads, Desktop, Documents,
 and Movies folders by default. The folders can be changed in Settings. Application

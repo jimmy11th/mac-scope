@@ -3,16 +3,19 @@ from __future__ import annotations
 import plistlib
 
 import pytest
-from textual.widgets import Button, DataTable
+from textual.widgets import Button, DataTable, ProgressBar
 
 from macscope.app import MacScopeApp
 from macscope.maintenance import CleanupFailureCode, MaintenanceKind, MaintenanceService
-from macscope.maintenance_screens import MaintenanceScreen
+from macscope.maintenance_screens import MaintenanceScreen, UninstallDetailsScreen
 from macscope.settings import SettingsStore
 
 
 @pytest.mark.asyncio
-async def test_uninstaller_reveals_related_data_only_after_app_selection(tmp_path) -> None:
+async def test_uninstaller_opens_single_app_review_with_related_data(
+    tmp_path,
+    monkeypatch,
+) -> None:
     applications = tmp_path / "Applications"
     app_path = applications / "Example.app"
     info = app_path / "Contents/Info.plist"
@@ -29,6 +32,12 @@ async def test_uninstaller_reveals_related_data_only_after_app_selection(tmp_pat
         application_roots=(applications,),
         scan_roots=(tmp_path / "Downloads",),
     )
+    external_copy = tmp_path / "workspace/Example.app"
+    monkeypatch.setattr(
+        app.maintenance,
+        "find_application_copies",
+        lambda bundle_id, excluding=None: (external_copy,),
+    )
     async with app.run_test(size=(120, 42)) as pilot:
         await pilot.pause(0.2)
         await pilot.click("#tool-uninstall")
@@ -40,22 +49,29 @@ async def test_uninstaller_reveals_related_data_only_after_app_selection(tmp_pat
         )
         related = next(item for item in screen.items if item.kind is MaintenanceKind.RESIDUE)
         assert screen.visible_items == [application]
-        assert str(screen.query_one(DataTable).get_row_at(0)[0]) == "[ ]"
-        assert screen.query_one("#maintenance-clean", Button).disabled
+        assert str(screen.query_one(DataTable).get_row_at(0)[0]) == " › "
+        assert not screen.query_one("#maintenance-clean", Button).display
+        assert not screen.query_one("#maintenance-select-all", Button).display
 
         screen._toggle_row(0)
-        await pilot.pause()
-        assert screen.visible_items == [application, related]
-        assert str(screen.query_one(DataTable).get_row_at(0)[0]) == "[✓]"
-        assert not screen.query_one("#maintenance-clean", Button).disabled
+        await pilot.pause(0.2)
+        details = app.screen
+        assert isinstance(details, UninstallDetailsScreen)
+        assert details.application == application
+        assert details.related == (related,)
+        assert details.other_copies == (external_copy,)
+        assert details.selected == {application.id, related.id}
+        warning = details.query_one("#uninstall-copy-warning")
+        assert warning.has_class("visible")
+        assert str(external_copy) in str(warning.render())
+        table = details.query_one("#uninstall-items", DataTable)
+        assert str(table.get_row_at(0)[0]) == "[✓]"
+        assert str(table.get_row_at(1)[0]) == "[✓]"
 
-        screen._toggle_row(1)
-        assert screen.selected == {application.id, related.id}
-
-        screen._toggle_row(0)
-        assert screen.selected == set()
-        assert screen.visible_items == [application]
-        assert screen.query_one("#maintenance-clean", Button).disabled
+        details._toggle_row(1)
+        assert details.selected == {application.id}
+        details._toggle_row(0)
+        assert details.selected == {application.id}
 
 
 @pytest.mark.asyncio
@@ -91,33 +107,66 @@ async def test_uninstaller_keeps_failed_related_data_for_retry(
         )
         related = next(item for item in screen.items if item.kind is MaintenanceKind.RESIDUE)
         screen._toggle_row(0)
-        screen._toggle_row(1)
+        await pilot.pause(0.2)
+        details = app.screen
+        assert isinstance(details, UninstallDetailsScreen)
+        details._toggle_row(1)
 
         def fail_related(path: str) -> None:
             if path == str(related.path):
                 raise PermissionError("operation not permitted")
 
         monkeypatch.setattr("macscope.maintenance.send2trash", fail_related)
-        result = screen.maintenance.cleanup((application, related))
-        screen._apply_cleanup_result(result)
-        await pilot.pause()
+        details._begin_cleanup()
+        await pilot.pause(0.3)
 
-        assert screen.items == [application, related]
-        assert screen.completed == {application.id}
-        assert screen.selected == {related.id}
-        assert screen.failures[related.id].code is CleanupFailureCode.PRIVACY_ACCESS
-        assert str(screen.query_one("#maintenance-clean", Button).label) == "Retry 1"
-        assert "Full Disk Access required" in str(screen.query_one(DataTable).get_row_at(1)[3])
-
-        screen._toggle_row(0)
-        assert screen.selected == {related.id}
+        assert details.completed == {application.id}
+        assert details.selected == {related.id}
+        assert details.failures[related.id].code is CleanupFailureCode.PRIVACY_ACCESS
+        assert str(details.query_one("#uninstall-confirm", Button).label) == "Retry 1"
+        assert "Full Disk Access required" in str(
+            details.query_one("#uninstall-items", DataTable).get_row_at(1)[3]
+        )
+        progress = details.query_one("#uninstall-progress", ProgressBar)
+        assert progress.has_class("active")
+        assert progress.progress == progress.total
 
         monkeypatch.setattr("macscope.maintenance.send2trash", lambda path: None)
-        retry = screen.maintenance.cleanup((related,))
-        screen._apply_cleanup_result(retry)
+        details._begin_cleanup()
+        await pilot.pause(0.3)
+
+        assert details.completed == {application.id, related.id}
+        assert details.failures == {}
+        assert details.selected == set()
+        assert details.query_one("#uninstall-confirm", Button).disabled
+
+
+@pytest.mark.asyncio
+async def test_cleanup_keeps_completed_file_details_and_progress_visible(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    log = tmp_path / "Library/Logs/example.log"
+    log.parent.mkdir(parents=True)
+    log.write_bytes(b"log")
+    app = MacScopeApp(settings_store=SettingsStore(tmp_path / "settings.plist"))
+    app.maintenance = MaintenanceService(home=tmp_path)
+    monkeypatch.setattr("macscope.maintenance.send2trash", lambda path: None)
+
+    async with app.run_test(size=(120, 42)) as pilot:
+        await pilot.pause(0.2)
+        await pilot.click("#tool-junk")
+        await pilot.pause(0.3)
+        screen = app.screen
+        assert isinstance(screen, MaintenanceScreen)
+        item = screen.items[0]
+
+        await screen._clean([item])
         await pilot.pause()
 
-        assert screen.items == []
-        assert screen.visible_items == []
-        assert screen.completed == set()
-        assert screen.selected == set()
+        assert screen.items == [item]
+        assert screen.completed == {item.id}
+        assert screen.query_one("#maintenance-progress", ProgressBar).progress == 1
+        row = screen.query_one("#maintenance-results", DataTable).get_row_at(0)
+        assert "Moved to Trash" in str(row[3])
+        assert str(item.path) in str(row[6])

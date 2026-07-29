@@ -259,6 +259,13 @@ def textual_theme_from_colors(name: str, mode: str, colors: dict[str, str]) -> T
             "selection": colors["selection_background"],
             "selection-text": colors["selection_text"],
             "surface-alt": colors["surface_alt"],
+            "block-cursor-background": colors["selection_background"],
+            "block-cursor-foreground": colors["selection_text"],
+            "block-cursor-text-style": "none",
+            "block-cursor-blurred-background": colors["selection_background"],
+            "block-cursor-blurred-foreground": colors["selection_text"],
+            "block-cursor-blurred-text-style": "none",
+            "block-hover-background": colors["surface_alt"],
         },
     )
 

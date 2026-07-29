@@ -353,6 +353,39 @@ class MacScopeApp(App[None]):
         width: 34;
     }
 
+    Select > SelectCurrent {
+        color: $foreground;
+        background: $surface-alt;
+        border: none;
+        padding: 0 1;
+    }
+
+    Select:focus > SelectCurrent {
+        color: $accent;
+        background: $surface-alt;
+        background-tint: transparent;
+        border-left: solid $accent;
+    }
+
+    Select > SelectOverlay,
+    Select > SelectOverlay:focus {
+        color: $foreground;
+        background: $surface;
+        background-tint: transparent;
+        border: solid $border;
+    }
+
+    Select > SelectOverlay > .option-list--option-highlighted,
+    Select > SelectOverlay:focus > .option-list--option-highlighted {
+        color: $selection-text;
+        background: $selection;
+        text-style: none;
+    }
+
+    Select > SelectOverlay > .option-list--option-hover {
+        background: $surface-alt;
+    }
+
     .scan-roots-row Input {
         width: 50;
     }
@@ -388,7 +421,7 @@ class MacScopeApp(App[None]):
 
     .preference-row Switch:focus {
         border: none;
-        background: $selection;
+        background: transparent;
     }
 
     .theme-actions {
@@ -457,6 +490,75 @@ class MacScopeApp(App[None]):
     .maintenance-summary {
         height: 2;
         color: $muted;
+    }
+
+    #maintenance-progress,
+    #uninstall-progress {
+        display: none;
+        width: 100%;
+        height: 1;
+        margin-bottom: 1;
+        color: $accent;
+    }
+
+    #maintenance-progress.active,
+    #uninstall-progress.active {
+        display: block;
+    }
+
+    #maintenance-current,
+    #uninstall-current {
+        display: none;
+        height: 2;
+        color: $muted;
+    }
+
+    #maintenance-current.active,
+    #uninstall-current.active {
+        display: block;
+    }
+
+    .uninstall-dialog {
+        width: 108;
+        height: 86%;
+    }
+
+    #uninstall-app-summary {
+        height: 3;
+        padding: 0 1;
+        color: $foreground;
+        background: $surface-alt;
+        content-align: left middle;
+    }
+
+    #uninstall-copy-warning {
+        display: none;
+        height: auto;
+        max-height: 4;
+        margin: 1 0;
+        color: $warning;
+    }
+
+    #uninstall-copy-warning.visible {
+        display: block;
+    }
+
+    #uninstall-items {
+        height: 1fr;
+        color: $foreground;
+        background: $surface-alt;
+    }
+
+    #uninstall-items > .datatable--header {
+        color: $muted;
+        background: $surface;
+        text-style: bold;
+    }
+
+    #uninstall-items > .datatable--cursor {
+        color: $selection-text;
+        background: $selection;
+        text-style: none;
     }
 
     #maintenance-status {

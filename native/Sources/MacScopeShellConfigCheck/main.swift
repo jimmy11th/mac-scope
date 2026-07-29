@@ -52,6 +52,7 @@ do {
     environment: [
       "MACSCOPE_PROJECT_ROOT": project.path,
       "MACSCOPE_UV_PATH": uv.path,
+      "NO_COLOR": "1",
       "PATH": "/usr/bin",
     ],
     bundleInfo: [:],
@@ -77,6 +78,10 @@ do {
   expect(
     configuration.environment.contains("MACSCOPE_HOST_PID=\(getpid())"),
     "native host process identifier"
+  )
+  expect(
+    !configuration.environment.contains(where: { $0.hasPrefix("NO_COLOR=") }),
+    "native shell removes inherited NO_COLOR"
   )
 } catch {
   failures.append("development configuration: \(error.localizedDescription)")
