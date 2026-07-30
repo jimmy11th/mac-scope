@@ -137,7 +137,7 @@ native/scripts/build_dmg.sh release
 默认输出：
 
 ```text
-native/build/MacScope-0.4.7.dmg
+native/build/MacScope-0.4.8.dmg
 ```
 
 也可以指定输出路径：

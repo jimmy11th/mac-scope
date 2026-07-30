@@ -90,29 +90,13 @@ struct MacScopeRootView: View {
   }
 
   private var sidebarFooter: some View {
-    VStack(alignment: .leading, spacing: 7) {
-      Link(destination: AppLinks.author) {
-        GitHubLinkLabel(title: "Author: shenmuoso", iconSize: 12)
-      }
-      .lineLimit(1)
-      .minimumScaleFactor(0.85)
-      .help("Author Homepage")
-      Link(destination: AppLinks.github) {
-        GitHubLinkLabel(title: "Project: mac-scope", iconSize: 12)
-      }
-      .lineLimit(1)
-      .minimumScaleFactor(0.85)
-      .help("Project Homepage")
-      Text("Version \(AppMetadata.version)")
-        .foregroundStyle(.tertiary)
-        .monospacedDigit()
-    }
-    .font(.caption)
-    .buttonStyle(.plain)
-    .foregroundStyle(.secondary)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(.horizontal, 14)
-    .padding(.vertical, 12)
+    Text("Version \(AppMetadata.version)")
+      .monospacedDigit()
+      .font(.caption)
+      .foregroundStyle(.tertiary)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.horizontal, 14)
+      .padding(.vertical, 10)
   }
 
   @ViewBuilder
