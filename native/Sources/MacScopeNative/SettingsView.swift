@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SettingsView: View {
   @EnvironmentObject private var settings: AppSettings
+  @EnvironmentObject private var metrics: SystemMetricsStore
   @Environment(\.openWindow) private var openWindow
 
   @AppStorage("native.settingsTab") private var selectedTab = "general"
@@ -15,6 +16,9 @@ struct SettingsView: View {
         generalSettings
           .tabItem { Label("General", systemImage: "gearshape") }
           .tag("general")
+        menuBarSettings
+          .tabItem { Label("Menu Bar", systemImage: "menubar.rectangle") }
+          .tag("menuBar")
         appearanceSettings
           .tabItem { Label("Appearance", systemImage: "paintpalette") }
           .tag("appearance")
@@ -38,7 +42,8 @@ struct SettingsView: View {
       Button("Reset", role: .destructive, action: settings.resetAll)
       Button("Cancel", role: .cancel) {}
     } message: {
-      Text("Monitoring, appearance, and cleanup preferences will return to their defaults.")
+      Text(
+        "Monitoring, menu bar, appearance, and cleanup preferences will return to their defaults.")
     }
   }
 
@@ -142,6 +147,100 @@ struct SettingsView: View {
     .padding(8)
   }
 
+  private var menuBarSettings: some View {
+    Form {
+      Section("Status Item") {
+        Toggle("Show MacScope in menu bar", isOn: $settings.menuBarEnabled)
+
+        Picker("Menu bar display", selection: $settings.menuBarDisplayMode) {
+          Text("Icon Only").tag(MenuBarDisplayMode.iconOnly)
+          Text("Compact").tag(MenuBarDisplayMode.compact)
+        }
+        .pickerStyle(.segmented)
+        .disabled(!settings.menuBarEnabled)
+
+        LabeledContent("Preview") {
+          MenuBarStatusContent(
+            snapshot: metrics.snapshot,
+            displayMode: settings.menuBarDisplayMode,
+            selectedMetrics: settings.menuBarMetrics,
+            temperatureUnit: settings.temperatureUnit
+          )
+          .padding(.horizontal, 9)
+          .frame(height: 28)
+          .background(
+            Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
+        }
+        .disabled(!settings.menuBarEnabled)
+      }
+
+      Section("Menu Bar Values") {
+        LabeledContent("Selected") {
+          Text("\(settings.menuBarMetrics.count) / 3")
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
+        }
+
+        ForEach(settings.orderedMenuBarMetrics) { metric in
+          let isSelected = settings.menuBarMetrics.contains(metric)
+          MenuBarConfigurationRow(
+            title: LocalizedStringKey(metric.title),
+            systemImage: metric.systemImage,
+            isSelected: Binding(
+              get: { settings.menuBarMetrics.contains(metric) },
+              set: { settings.setMenuBarMetric(metric, isEnabled: $0) }
+            ),
+            canSelect: isSelected || settings.menuBarMetrics.count < 3,
+            canMoveUp: settings.menuBarMetrics.first != metric && isSelected,
+            canMoveDown: settings.menuBarMetrics.last != metric && isSelected,
+            moveUp: { settings.moveMenuBarMetric(metric, offset: -1) },
+            moveDown: { settings.moveMenuBarMetric(metric, offset: 1) }
+          )
+        }
+      }
+      .disabled(!settings.menuBarEnabled || settings.menuBarDisplayMode == .iconOnly)
+
+      Section("Dashboard") {
+        ForEach(settings.orderedMenuBarModules) { module in
+          let isSelected = settings.menuBarModules.contains(module)
+          MenuBarConfigurationRow(
+            title: LocalizedStringKey(module.title),
+            systemImage: module.systemImage,
+            isSelected: Binding(
+              get: { settings.menuBarModules.contains(module) },
+              set: { settings.setMenuBarModule(module, isEnabled: $0) }
+            ),
+            canSelect: true,
+            canMoveUp: settings.menuBarModules.first != module && isSelected,
+            canMoveDown: settings.menuBarModules.last != module && isSelected,
+            moveUp: { settings.moveMenuBarModule(module, offset: -1) },
+            moveDown: { settings.moveMenuBarModule(module, offset: 1) }
+          )
+        }
+      }
+      .disabled(!settings.menuBarEnabled)
+
+      if settings.menuBarModules.contains(.processes) {
+        Section("Top Processes") {
+          Picker("Process sorting", selection: $settings.menuBarProcessSort) {
+            ForEach(MenuBarProcessSort.allCases) { sort in
+              Text(LocalizedStringKey(sort.title)).tag(sort)
+            }
+          }
+          Picker("Process count", selection: $settings.menuBarProcessLimit) {
+            Text("3").tag(3)
+            Text("5").tag(5)
+            Text("8").tag(8)
+            Text("10").tag(10)
+          }
+        }
+        .disabled(!settings.menuBarEnabled)
+      }
+    }
+    .formStyle(.grouped)
+    .padding(8)
+  }
+
   private var cleanupSettings: some View {
     Form {
       Section("Cleanup Behavior") {
@@ -209,9 +308,9 @@ struct SettingsView: View {
             nsImage: AppIconController.image(for: settings.appIconStyle)
               ?? NSApp.applicationIconImage
           )
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-            .frame(width: 64, height: 64)
+          .resizable()
+          .aspectRatio(contentMode: .fit)
+          .frame(width: 64, height: 64)
           VStack(alignment: .leading, spacing: 4) {
             Text("MacScope")
               .font(.title2.weight(.semibold))
@@ -269,6 +368,45 @@ struct SettingsView: View {
     guard let selectedScanFolder, settings.scanFolderPaths.count > 1 else { return }
     settings.scanFolderPaths.removeAll { $0 == selectedScanFolder }
     self.selectedScanFolder = nil
+  }
+}
+
+private struct MenuBarConfigurationRow: View {
+  let title: LocalizedStringKey
+  let systemImage: String
+  @Binding var isSelected: Bool
+  let canSelect: Bool
+  let canMoveUp: Bool
+  let canMoveDown: Bool
+  let moveUp: () -> Void
+  let moveDown: () -> Void
+
+  var body: some View {
+    HStack(spacing: 8) {
+      Toggle(isOn: $isSelected) {
+        Label(title, systemImage: systemImage)
+      }
+      .toggleStyle(.checkbox)
+      .disabled(!canSelect)
+
+      Spacer()
+
+      Button(action: moveUp) {
+        Image(systemName: "chevron.up")
+          .frame(width: 18, height: 18)
+      }
+      .buttonStyle(.borderless)
+      .help("Move Up")
+      .disabled(!canMoveUp)
+
+      Button(action: moveDown) {
+        Image(systemName: "chevron.down")
+          .frame(width: 18, height: 18)
+      }
+      .buttonStyle(.borderless)
+      .help("Move Down")
+      .disabled(!canMoveDown)
+    }
   }
 }
 

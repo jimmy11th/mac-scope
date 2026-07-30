@@ -5,12 +5,32 @@ import Foundation
 @MainActor
 final class SystemMetricsStore: ObservableObject {
   @Published private(set) var snapshot = SystemSnapshot.empty
+  private(set) var history: [SystemHistoryPoint] = []
 
   func update(from source: SystemSnapshot) {
     var metrics = source
     metrics.processes = []
+    let cutoff = metrics.timestamp.addingTimeInterval(-60)
+    history.removeAll { $0.timestamp < cutoff }
+    history.append(
+      SystemHistoryPoint(
+        timestamp: metrics.timestamp,
+        cpuPercent: metrics.cpu.total,
+        memoryPercent: metrics.memory.fraction * 100,
+        diskReadRate: metrics.disk.readRate,
+        diskWriteRate: metrics.disk.writeRate,
+        networkDownloadRate: metrics.network.downloadRate,
+        networkUploadRate: metrics.network.uploadRate,
+        temperatureCelsius: metrics.cpu.temperature.socCelsius
+      )
+    )
     snapshot = metrics
   }
+}
+
+enum ProcessSamplingClient: Hashable, Sendable {
+  case overview
+  case menuBar
 }
 
 @MainActor
@@ -18,7 +38,7 @@ final class SystemMonitor: ObservableObject {
   @Published private(set) var processes: [ProcessRow] = []
   let metrics = SystemMetricsStore()
   private(set) var processHistory: [ProcessHistoryPoint] = []
-  private(set) var isRefreshing = false
+  @Published private(set) var isRefreshing = false
   @Published var isPaused = false
 
   private(set) var refreshInterval: Double = 2
@@ -28,7 +48,7 @@ final class SystemMonitor: ObservableObject {
   private var metricsMonitoringTask: Task<Void, Never>?
   private var processMonitoringTask: Task<Void, Never>?
   private var trackedPID: Int32?
-  private var processSamplingRequested = false
+  private var processSamplingClients: Set<ProcessSamplingClient> = []
   private var processResumeTask: Task<Void, Never>?
   private var processSamplingGeneration = 0
   private var metricsRefreshing = false
@@ -96,12 +116,12 @@ final class SystemMonitor: ObservableObject {
   }
 
   func refreshProcesses(generation: Int? = nil) async {
-    guard processSamplingRequested, !processesRefreshing else { return }
+    guard isProcessSamplingRequested, !processesRefreshing else { return }
     processesRefreshing = true
     isRefreshing = true
     let samplingGeneration = generation ?? processSamplingGeneration
     let nextProcesses = await processSampler.sampleProcesses()
-    if processSamplingRequested, samplingGeneration == processSamplingGeneration {
+    if isProcessSamplingRequested, samplingGeneration == processSamplingGeneration {
       var processSnapshot = metrics.snapshot
       processSnapshot.processes = nextProcesses
       recordHistory(for: processSnapshot)
@@ -113,28 +133,35 @@ final class SystemMonitor: ObservableObject {
 
   func refreshNow(forceProcessSample: Bool = true) {
     Task { await refreshMetrics() }
-    if forceProcessSample, processSamplingRequested {
+    if forceProcessSample, isProcessSamplingRequested {
       let generation = processSamplingGeneration
       Task { await refreshProcesses(generation: generation) }
     }
   }
 
-  func setProcessSamplingEnabled(_ isEnabled: Bool) {
-    guard processSamplingRequested != isEnabled else { return }
-    processSamplingRequested = isEnabled
+  func setProcessSampling(_ isEnabled: Bool, for client: ProcessSamplingClient) {
+    let wasRequested = isProcessSamplingRequested
+    if isEnabled {
+      processSamplingClients.insert(client)
+    } else {
+      processSamplingClients.remove(client)
+    }
+    let isRequested = isProcessSamplingRequested
+    guard wasRequested != isRequested else { return }
+
     processSamplingGeneration += 1
     processResumeTask?.cancel()
     processResumeTask = nil
     processMonitoringTask?.cancel()
     processMonitoringTask = nil
 
-    guard isEnabled else { return }
+    guard isRequested else { return }
 
     let generation = processSamplingGeneration
     processResumeTask = Task { [weak self] in
       try? await Task.sleep(nanoseconds: 250_000_000)
       guard let self, !Task.isCancelled,
-        self.processSamplingRequested,
+        self.isProcessSamplingRequested,
         self.processSamplingGeneration == generation
       else {
         return
@@ -148,7 +175,7 @@ final class SystemMonitor: ObservableObject {
     processMonitoringTask = Task { [weak self] in
       guard let self else { return }
       while !Task.isCancelled,
-        self.processSamplingRequested,
+        self.isProcessSamplingRequested,
         self.processSamplingGeneration == generation
       {
         let refreshStartedAt = ProcessInfo.processInfo.systemUptime
@@ -161,6 +188,10 @@ final class SystemMonitor: ObservableObject {
         try? await Task.sleep(nanoseconds: delay)
       }
     }
+  }
+
+  private var isProcessSamplingRequested: Bool {
+    !processSamplingClients.isEmpty
   }
 
   func togglePause() {

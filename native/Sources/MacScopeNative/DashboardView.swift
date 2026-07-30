@@ -44,6 +44,7 @@ private enum ProcessCommand: Identifiable {
 struct DashboardView: View {
   @EnvironmentObject private var monitor: SystemMonitor
   @EnvironmentObject private var settings: AppSettings
+  @EnvironmentObject private var navigation: AppNavigation
 
   @State private var searchText = ""
   @State private var selection: ProcessRow.ID?
@@ -158,6 +159,12 @@ struct DashboardView: View {
     }
     .onChange(of: selection) { selected in
       monitor.trackProcess(selected)
+    }
+    .onChange(of: navigation.processInspectionRequest) { request in
+      handleProcessInspection(request)
+    }
+    .onAppear {
+      handleProcessInspection(navigation.processInspectionRequest)
     }
     .alert(item: $pendingCommand) { command in
       Alert(
@@ -332,7 +339,7 @@ struct DashboardView: View {
   private func showInspector() {
     guard !showsInspector else { return }
     showsInspector = true
-    guard let window = NSApp.keyWindow ?? NSApp.mainWindow,
+    guard let window = AppWindowActions.mainWindow,
       window.frame.width < 1_180,
       let visibleFrame = window.screen?.visibleFrame
     else {
@@ -348,6 +355,18 @@ struct DashboardView: View {
     )
     frame.size.width = targetWidth
     window.setFrame(frame, display: true, animate: true)
+  }
+
+  private func handleProcessInspection(_ request: ProcessInspectionRequest?) {
+    guard let request,
+      monitor.processes.contains(where: { $0.pid == request.pid })
+    else {
+      return
+    }
+    selection = request.pid
+    monitor.trackProcess(request.pid)
+    showInspector()
+    navigation.completeProcessInspection(request)
   }
 }
 
@@ -434,43 +453,6 @@ private struct SystemOverview: View {
 
   private func localized(_ key: String, _ arguments: CVarArg...) -> String {
     AppLocalization.string(key, language: language, arguments: arguments)
-  }
-}
-
-private enum MetricColorScale {
-  static func utilization(fraction: Double) -> Color {
-    switch min(1, max(0, fraction)) {
-    case ...0.30: .green
-    case ...0.50: .blue
-    case ...0.70: .yellow
-    case ...0.90: .orange
-    default: .red
-    }
-  }
-
-  static func network(rate: Double) -> Color {
-    switch max(0, rate) {
-    case ..<(10 * 1_024): .red
-    case ..<(500 * 1_024): .orange
-    case ..<(3 * 1_024 * 1_024): .yellow
-    case ..<(10 * 1_024 * 1_024): .blue
-    default: .green
-    }
-  }
-
-  static func temperature(celsius: Double?) -> Color {
-    guard let celsius else { return .secondary }
-    return switch celsius {
-    case ..<(-20): .red
-    case ..<(-10): .orange
-    case ..<0: .yellow
-    case ..<10: .blue
-    case ..<30: .green
-    case ..<50: .blue
-    case ..<70: .yellow
-    case ..<90: .orange
-    default: .red
-    }
   }
 }
 

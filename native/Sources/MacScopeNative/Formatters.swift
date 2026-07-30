@@ -14,6 +14,24 @@ enum DisplayFormat {
     String(format: "%.1f%%", max(0, value))
   }
 
+  static func compactPercent(_ value: Double) -> String {
+    String(format: "%.0f%%", max(0, value))
+  }
+
+  static func compactRate(_ value: Double) -> String {
+    let rate = max(0, value)
+    switch rate {
+    case 1_000_000_000...:
+      return String(format: rate >= 10_000_000_000 ? "%.0fG" : "%.1fG", rate / 1_000_000_000)
+    case 1_000_000...:
+      return String(format: rate >= 10_000_000 ? "%.0fM" : "%.1fM", rate / 1_000_000)
+    case 1_000...:
+      return String(format: rate >= 10_000 ? "%.0fK" : "%.1fK", rate / 1_000)
+    default:
+      return String(format: "%.0fB", rate)
+    }
+  }
+
   static func temperature(_ celsius: Double?, unit: TemperatureUnit) -> String? {
     guard let celsius, celsius.isFinite else { return nil }
     switch unit {

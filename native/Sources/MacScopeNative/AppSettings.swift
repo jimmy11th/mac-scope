@@ -51,6 +51,12 @@ final class AppSettings: ObservableObject {
     static let language = "native.language"
     static let appearance = "native.appearance"
     static let appIconStyle = "native.appIconStyle"
+    static let menuBarEnabled = "native.menuBarEnabled"
+    static let menuBarDisplayMode = "native.menuBarDisplayMode"
+    static let menuBarMetrics = "native.menuBarMetrics"
+    static let menuBarModules = "native.menuBarModules"
+    static let menuBarProcessSort = "native.menuBarProcessSort"
+    static let menuBarProcessLimit = "native.menuBarProcessLimit"
     static let sidebarTransparencyEnabled = "native.sidebarTransparencyEnabled"
     static let sidebarTransparency = "native.sidebarTransparency"
     static let refreshInterval = "native.refreshInterval"
@@ -79,6 +85,30 @@ final class AppSettings: ObservableObject {
       defaults.set(appIconStyle.rawValue, forKey: Key.appIconStyle)
       AppIconController.apply(appIconStyle)
     }
+  }
+
+  @Published var menuBarEnabled: Bool {
+    didSet { defaults.set(menuBarEnabled, forKey: Key.menuBarEnabled) }
+  }
+
+  @Published var menuBarDisplayMode: MenuBarDisplayMode {
+    didSet { defaults.set(menuBarDisplayMode.rawValue, forKey: Key.menuBarDisplayMode) }
+  }
+
+  @Published private(set) var menuBarMetrics: [MenuBarMetric] {
+    didSet { defaults.set(menuBarMetrics.map(\.rawValue), forKey: Key.menuBarMetrics) }
+  }
+
+  @Published private(set) var menuBarModules: [MenuBarModule] {
+    didSet { defaults.set(menuBarModules.map(\.rawValue), forKey: Key.menuBarModules) }
+  }
+
+  @Published var menuBarProcessSort: MenuBarProcessSort {
+    didSet { defaults.set(menuBarProcessSort.rawValue, forKey: Key.menuBarProcessSort) }
+  }
+
+  @Published var menuBarProcessLimit: Int {
+    didSet { defaults.set(menuBarProcessLimit, forKey: Key.menuBarProcessLimit) }
   }
 
   @Published var sidebarTransparencyEnabled: Bool {
@@ -137,6 +167,34 @@ final class AppSettings: ObservableObject {
     appearance = AppAppearance(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .system
     appIconStyle =
       AppIconStyle(rawValue: defaults.string(forKey: Key.appIconStyle) ?? "") ?? .minimal
+    menuBarEnabled =
+      defaults.object(forKey: Key.menuBarEnabled) == nil
+      ? true : defaults.bool(forKey: Key.menuBarEnabled)
+    menuBarDisplayMode =
+      MenuBarDisplayMode(rawValue: defaults.string(forKey: Key.menuBarDisplayMode) ?? "")
+      ?? .compact
+    if defaults.object(forKey: Key.menuBarMetrics) == nil {
+      menuBarMetrics = [.cpu, .memory]
+    } else {
+      menuBarMetrics = Array(
+        Self.decode(MenuBarMetric.self, values: defaults.stringArray(forKey: Key.menuBarMetrics))
+          .prefix(3)
+      )
+    }
+    if defaults.object(forKey: Key.menuBarModules) == nil {
+      menuBarModules = [.cpu, .memory, .disk, .network, .temperature, .processes]
+    } else {
+      menuBarModules = Self.decode(
+        MenuBarModule.self,
+        values: defaults.stringArray(forKey: Key.menuBarModules)
+      )
+    }
+    menuBarProcessSort =
+      MenuBarProcessSort(rawValue: defaults.string(forKey: Key.menuBarProcessSort) ?? "") ?? .cpu
+    let savedMenuBarProcessLimit = defaults.integer(forKey: Key.menuBarProcessLimit)
+    menuBarProcessLimit =
+      [3, 5, 8, 10].contains(savedMenuBarProcessLimit)
+      ? savedMenuBarProcessLimit : 5
     sidebarTransparencyEnabled =
       defaults.object(forKey: Key.sidebarTransparencyEnabled) == nil
       ? true : defaults.bool(forKey: Key.sidebarTransparencyEnabled)
@@ -166,7 +224,8 @@ final class AppSettings: ObservableObject {
       TemperatureUnit(rawValue: defaults.string(forKey: Key.temperatureUnit) ?? "") ?? .celsius
 
     let savedThemeID = defaults.string(forKey: Key.themeID) ?? ThemePalette.system.id
-    themeID = ThemePalette.builtIns.contains(where: { $0.id == savedThemeID })
+    themeID =
+      ThemePalette.builtIns.contains(where: { $0.id == savedThemeID })
       ? savedThemeID : ThemePalette.system.id
     defaults.removeObject(forKey: "native.customTheme")
 
@@ -192,6 +251,12 @@ final class AppSettings: ObservableObject {
     language = .english
     appearance = .system
     appIconStyle = .minimal
+    menuBarEnabled = true
+    menuBarDisplayMode = .compact
+    menuBarMetrics = [.cpu, .memory]
+    menuBarModules = [.cpu, .memory, .disk, .network, .temperature, .processes]
+    menuBarProcessSort = .cpu
+    menuBarProcessLimit = 5
     sidebarTransparencyEnabled = true
     sidebarTransparency = 0.7
     refreshInterval = 2
@@ -210,5 +275,66 @@ final class AppSettings: ObservableObject {
     return ["Downloads", "Desktop", "Documents", "Movies"].map {
       home.appendingPathComponent($0, isDirectory: true).path
     }
+  }
+
+  var orderedMenuBarMetrics: [MenuBarMetric] {
+    menuBarMetrics + MenuBarMetric.allCases.filter { !menuBarMetrics.contains($0) }
+  }
+
+  var orderedMenuBarModules: [MenuBarModule] {
+    menuBarModules + MenuBarModule.allCases.filter { !menuBarModules.contains($0) }
+  }
+
+  func setMenuBarMetric(_ metric: MenuBarMetric, isEnabled: Bool) {
+    if isEnabled {
+      guard !menuBarMetrics.contains(metric), menuBarMetrics.count < 3 else { return }
+      menuBarMetrics.append(metric)
+    } else {
+      menuBarMetrics.removeAll { $0 == metric }
+    }
+  }
+
+  func moveMenuBarMetric(_ metric: MenuBarMetric, offset: Int) {
+    menuBarMetrics = Self.moving(metric, offset: offset, in: menuBarMetrics)
+  }
+
+  func setMenuBarModule(_ module: MenuBarModule, isEnabled: Bool) {
+    if isEnabled {
+      guard !menuBarModules.contains(module) else { return }
+      menuBarModules.append(module)
+    } else {
+      menuBarModules.removeAll { $0 == module }
+    }
+  }
+
+  func moveMenuBarModule(_ module: MenuBarModule, offset: Int) {
+    menuBarModules = Self.moving(module, offset: offset, in: menuBarModules)
+  }
+
+  private static func decode<Value>(
+    _ type: Value.Type,
+    values: [String]?
+  ) -> [Value] where Value: RawRepresentable & Hashable, Value.RawValue == String {
+    var seen: Set<Value> = []
+    var result: [Value] = []
+    for rawValue in values ?? [] {
+      guard let value = Value(rawValue: rawValue), seen.insert(value).inserted else { continue }
+      result.append(value)
+    }
+    return result
+  }
+
+  private static func moving<Value: Equatable>(
+    _ value: Value,
+    offset: Int,
+    in values: [Value]
+  ) -> [Value] {
+    guard let source = values.firstIndex(of: value) else { return values }
+    let destination = min(values.count - 1, max(0, source + offset))
+    guard source != destination else { return values }
+    var result = values
+    result.remove(at: source)
+    result.insert(value, at: destination)
+    return result
   }
 }

@@ -22,6 +22,7 @@ struct MainWindowConfigurationView: NSViewRepresentable {
         .miniaturizable,
         .resizable,
       ])
+      window.identifier = AppWindowActions.mainWindowIdentifier
       window.contentMinSize = NSSize(width: 1_020, height: 620)
       window.contentResizeIncrements = NSSize(width: 1, height: 1)
       window.collectionBehavior.insert(.fullScreenPrimary)

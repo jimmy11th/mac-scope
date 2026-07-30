@@ -1,70 +1,22 @@
-import AppKit
 import SwiftUI
 
-private enum SidebarDestination: String, CaseIterable, Identifiable {
-  case overview
-  case junk
-  case applications
-  case largeFiles
-  case duplicates
-  case memory
-
-  var id: String { rawValue }
-
-  var title: LocalizedStringKey {
-    switch self {
-    case .overview: "Overview"
-    case .junk: "Junk Cleanup"
-    case .applications: "Applications"
-    case .largeFiles: "Large Files"
-    case .duplicates: "Duplicates"
-    case .memory: "Memory"
-    }
-  }
-
-  var systemImage: String {
-    switch self {
-    case .overview: "gauge.with.dots.needle.50percent"
-    case .junk: "trash"
-    case .applications: "app.dashed"
-    case .largeFiles: "externaldrive.badge.exclamationmark"
-    case .duplicates: "doc.on.doc"
-    case .memory: "memorychip"
-    }
-  }
-}
-
 struct MacScopeRootView: View {
-  private static let destinationKey = "native.sidebarDestination"
-
-  let monitor: SystemMonitor
+  @EnvironmentObject private var monitor: SystemMonitor
   @EnvironmentObject private var settings: AppSettings
-  @State private var destination: SidebarDestination
+  @EnvironmentObject private var navigation: AppNavigation
 
-  init(monitor: SystemMonitor) {
-    self.monitor = monitor
-    let savedDestination = UserDefaults.standard.string(forKey: Self.destinationKey)
-    _destination = State(
-      initialValue: SidebarDestination(rawValue: savedDestination ?? "") ?? .overview
-    )
-  }
-
-  private var destinationSelection: Binding<SidebarDestination?> {
+  private var destinationSelection: Binding<AppDestination?> {
     Binding(
-      get: { destination },
+      get: { navigation.destination },
       set: {
         let nextDestination = $0 ?? .overview
-        guard destination != nextDestination else { return }
-        if destination == .overview {
-          monitor.setProcessSamplingEnabled(false)
+        guard navigation.destination != nextDestination else { return }
+        if navigation.destination == .overview {
+          monitor.setProcessSampling(false, for: .overview)
         }
-        destination = nextDestination
+        navigation.destination = nextDestination
         if nextDestination == .overview {
-          monitor.setProcessSamplingEnabled(true)
-        }
-        let rawValue = nextDestination.rawValue
-        DispatchQueue.main.async {
-          UserDefaults.standard.set(rawValue, forKey: Self.destinationKey)
+          monitor.setProcessSampling(true, for: .overview)
         }
       }
     )
@@ -97,8 +49,8 @@ struct MacScopeRootView: View {
           isEnabled: settings.sidebarTransparencyEnabled,
           transparency: settings.sidebarTransparency
         )
-          .ignoresSafeArea()
-          .allowsHitTesting(false)
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
       }
       .navigationSplitViewColumnWidth(min: 180, ideal: 210, max: 260)
     } detail: {
@@ -116,7 +68,7 @@ struct MacScopeRootView: View {
           }
           .help("Settings")
         } else {
-          Button(action: openSettings) {
+          Button(action: AppWindowActions.openSettings) {
             Label("Settings", systemImage: "gearshape")
           }
           .help("Settings")
@@ -124,11 +76,14 @@ struct MacScopeRootView: View {
       }
     }
     .onAppear {
-      monitor.setProcessSamplingEnabled(destination == .overview)
+      monitor.setProcessSampling(navigation.destination == .overview, for: .overview)
+    }
+    .onDisappear {
+      monitor.setProcessSampling(false, for: .overview)
     }
   }
 
-  private func sidebarRow(_ item: SidebarDestination) -> some View {
+  private func sidebarRow(_ item: AppDestination) -> some View {
     Label(item.title, systemImage: item.systemImage)
       .tag(item)
       .listRowBackground(Color.clear)
@@ -162,7 +117,7 @@ struct MacScopeRootView: View {
 
   @ViewBuilder
   private var detailContent: some View {
-    switch destination {
+    switch navigation.destination {
     case .overview:
       DashboardView()
     case .junk:
@@ -178,19 +133,4 @@ struct MacScopeRootView: View {
     }
   }
 
-  private func openSettings() {
-    NSApp.activate(ignoringOtherApps: true)
-    let didOpen = NSApp.sendAction(
-      Selector(("showSettingsWindow:")),
-      to: nil,
-      from: nil
-    )
-    if !didOpen {
-      NSApp.sendAction(
-        Selector(("showPreferencesWindow:")),
-        to: nil,
-        from: nil
-      )
-    }
-  }
 }
