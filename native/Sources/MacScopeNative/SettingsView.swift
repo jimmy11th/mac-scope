@@ -116,6 +116,27 @@ struct SettingsView: View {
           }
         }
       }
+
+      Section("Dock Icon") {
+        HStack(spacing: 18) {
+          AppIconChoice(
+            style: .minimal,
+            title: "Minimal",
+            isSelected: settings.appIconStyle == .minimal
+          ) {
+            settings.appIconStyle = .minimal
+          }
+          AppIconChoice(
+            style: .detailed,
+            title: "Detailed",
+            isSelected: settings.appIconStyle == .detailed
+          ) {
+            settings.appIconStyle = .detailed
+          }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
+      }
     }
     .formStyle(.grouped)
     .padding(8)
@@ -184,7 +205,10 @@ struct SettingsView: View {
     Form {
       Section {
         HStack(spacing: 14) {
-          Image(nsImage: NSApp.applicationIconImage)
+          Image(
+            nsImage: AppIconController.image(for: settings.appIconStyle)
+              ?? NSApp.applicationIconImage
+          )
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(width: 64, height: 64)
@@ -204,7 +228,7 @@ struct SettingsView: View {
           GitHubLinkLabel(title: "Author: shenmuoso")
         }
         Link(destination: AppLinks.github) {
-          GitHubLinkLabel(title: "Project: great-mac-scope")
+          GitHubLinkLabel(title: "Project: mac-scope")
         }
       }
 
@@ -245,5 +269,47 @@ struct SettingsView: View {
     guard let selectedScanFolder, settings.scanFolderPaths.count > 1 else { return }
     settings.scanFolderPaths.removeAll { $0 == selectedScanFolder }
     self.selectedScanFolder = nil
+  }
+}
+
+private struct AppIconChoice: View {
+  let style: AppIconStyle
+  let title: LocalizedStringKey
+  let isSelected: Bool
+  let action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      VStack(spacing: 7) {
+        Image(nsImage: AppIconController.image(for: style) ?? NSApp.applicationIconImage)
+          .resizable()
+          .aspectRatio(contentMode: .fit)
+          .frame(width: 58, height: 58)
+
+        Label {
+          Text(title)
+            .foregroundStyle(.primary)
+        } icon: {
+          Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+            .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+        }
+        .font(.callout)
+      }
+      .frame(width: 116, height: 92)
+      .background {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+          .fill(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
+      }
+      .overlay {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+          .stroke(
+            isSelected ? Color.accentColor : Color.secondary.opacity(0.22),
+            lineWidth: isSelected ? 1.5 : 1
+          )
+      }
+      .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+    .buttonStyle(.plain)
+    .accessibilityAddTraits(isSelected ? .isSelected : [])
   }
 }

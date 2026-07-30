@@ -76,7 +76,10 @@ struct HelpView: View {
   private var projectPage: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 18) {
-        Image(nsImage: NSApp.applicationIconImage)
+        Image(
+          nsImage: AppIconController.image(for: settings.appIconStyle)
+            ?? NSApp.applicationIconImage
+        )
           .resizable()
           .aspectRatio(contentMode: .fit)
           .frame(width: 72, height: 72)
@@ -86,7 +89,7 @@ struct HelpView: View {
           .font(.body)
           .foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
-        Text("github.com/shenmuoso/great-mac-scope")
+        Text("github.com/shenmuoso/mac-scope")
           .font(.callout.monospaced())
           .textSelection(.enabled)
         Link(destination: AppLinks.github) {

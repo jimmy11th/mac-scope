@@ -22,6 +22,7 @@ struct MacScopeNativeApp: App {
             .allowsHitTesting(false)
         }
         .onAppear {
+          AppIconController.apply(settings.appIconStyle)
           maintenance.updateLanguage(settings.language)
           monitor.updateRefreshInterval(settings.refreshInterval)
           monitor.start()

@@ -41,6 +41,9 @@
 "Dark" = "Dark";
 "Colors" = "Colors";
 "Theme" = "Theme";
+"Dock Icon" = "Dock Icon";
+"Minimal" = "Minimal";
+"Detailed" = "Detailed";
 "Graphite" = "Graphite";
 "High Contrast" = "High Contrast";
 "Custom" = "Custom";
@@ -215,7 +218,7 @@
 "Author Homepage" = "Author Homepage";
 "Project Homepage" = "Project Homepage";
 "Author: shenmuoso" = "Author: shenmuoso";
-"Project: great-mac-scope" = "Project: great-mac-scope";
+"Project: mac-scope" = "Project: mac-scope";
 "Version %@ (%@)" = "Version %@ (%@)";
 "MacScope is an open source macOS system utility." = "MacScope is an open source macOS system utility.";
 "MacScope Help" = "MacScope Help";

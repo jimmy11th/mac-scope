@@ -17,6 +17,20 @@ enum AppAppearance: String, CaseIterable, Identifiable, Sendable {
   var id: String { rawValue }
 }
 
+enum AppIconStyle: String, CaseIterable, Identifiable, Sendable {
+  case minimal
+  case detailed
+
+  var id: String { rawValue }
+
+  var resourceName: String {
+    switch self {
+    case .minimal: "MacScope"
+    case .detailed: "MacScopeDetailed"
+    }
+  }
+}
+
 enum TemperatureUnit: String, CaseIterable, Identifiable, Sendable {
   case celsius
   case fahrenheit
@@ -36,6 +50,7 @@ final class AppSettings: ObservableObject {
   private enum Key {
     static let language = "native.language"
     static let appearance = "native.appearance"
+    static let appIconStyle = "native.appIconStyle"
     static let sidebarTransparencyEnabled = "native.sidebarTransparencyEnabled"
     static let sidebarTransparency = "native.sidebarTransparency"
     static let refreshInterval = "native.refreshInterval"
@@ -57,6 +72,13 @@ final class AppSettings: ObservableObject {
 
   @Published var appearance: AppAppearance {
     didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) }
+  }
+
+  @Published var appIconStyle: AppIconStyle {
+    didSet {
+      defaults.set(appIconStyle.rawValue, forKey: Key.appIconStyle)
+      AppIconController.apply(appIconStyle)
+    }
   }
 
   @Published var sidebarTransparencyEnabled: Bool {
@@ -113,6 +135,8 @@ final class AppSettings: ObservableObject {
     self.defaults = defaults
     language = AppLanguage(rawValue: defaults.string(forKey: Key.language) ?? "") ?? .english
     appearance = AppAppearance(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .system
+    appIconStyle =
+      AppIconStyle(rawValue: defaults.string(forKey: Key.appIconStyle) ?? "") ?? .minimal
     sidebarTransparencyEnabled =
       defaults.object(forKey: Key.sidebarTransparencyEnabled) == nil
       ? true : defaults.bool(forKey: Key.sidebarTransparencyEnabled)
@@ -167,6 +191,7 @@ final class AppSettings: ObservableObject {
   func resetAll() {
     language = .english
     appearance = .system
+    appIconStyle = .minimal
     sidebarTransparencyEnabled = true
     sidebarTransparency = 0.7
     refreshInterval = 2

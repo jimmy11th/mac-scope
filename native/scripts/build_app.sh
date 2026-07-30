@@ -18,6 +18,7 @@ BIN_DIR=$(swift build --package-path "$NATIVE_ROOT" --configuration "$CONFIGURAT
 /usr/bin/ditto "$BIN_DIR/MacScopeNative" "$MACOS_DIR/MacScopeNative"
 /usr/bin/ditto "$NATIVE_ROOT/Resources/Info.plist" "$CONTENTS_DIR/Info.plist"
 /usr/bin/ditto "$NATIVE_ROOT/Resources/MacScope.icns" "$RESOURCES_DIR/MacScope.icns"
+/usr/bin/ditto "$NATIVE_ROOT/Resources/MacScopeDetailed.icns" "$RESOURCES_DIR/MacScopeDetailed.icns"
 /usr/bin/ditto "$NATIVE_ROOT/Resources/GitHubMark.svg" "$RESOURCES_DIR/GitHubMark.svg"
 for localization in "$NATIVE_ROOT"/Resources/*.lproj; do
     [[ -d "$localization" ]] || continue

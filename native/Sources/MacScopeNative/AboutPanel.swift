@@ -10,7 +10,7 @@ enum AboutPanel {
       ) + "\n"
     )
     let link = NSAttributedString(
-      string: "github.com/shenmuoso/great-mac-scope",
+      string: "github.com/shenmuoso/mac-scope",
       attributes: [
         .link: AppLinks.github,
         .foregroundColor: NSColor.linkColor,

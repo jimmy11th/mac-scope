@@ -41,6 +41,9 @@
 "Dark" = "深色";
 "Colors" = "颜色";
 "Theme" = "主题";
+"Dock Icon" = "程序坞图标";
+"Minimal" = "简洁";
+"Detailed" = "详细";
 "Graphite" = "石墨色";
 "High Contrast" = "高对比度";
 "Custom" = "自定义";
@@ -215,7 +218,7 @@
 "Author Homepage" = "作者主页";
 "Project Homepage" = "项目主页";
 "Author: shenmuoso" = "作者主页：shenmuoso";
-"Project: great-mac-scope" = "项目主页：great-mac-scope";
+"Project: mac-scope" = "项目主页：mac-scope";
 "Version %@ (%@)" = "版本 %@（构建 %@）";
 "MacScope is an open source macOS system utility." = "MacScope 是一款开源的 macOS 系统工具。";
 "MacScope Help" = "MacScope 帮助";

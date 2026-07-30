@@ -3,7 +3,7 @@ import Foundation
 
 enum AppLinks {
   static let author = URL(string: "https://github.com/shenmuoso")!
-  static let github = URL(string: "https://github.com/shenmuoso/great-mac-scope")!
+  static let github = URL(string: "https://github.com/shenmuoso/mac-scope")!
 
   @MainActor
   static func openGitHub() {
@@ -13,10 +13,10 @@ enum AppLinks {
 
 enum AppMetadata {
   static var version: String {
-    Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.4.6"
+    Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.4.7"
   }
 
   static var build: String {
-    Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "10"
+    Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "11"
   }
 }

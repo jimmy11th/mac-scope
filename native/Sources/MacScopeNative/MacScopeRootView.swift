@@ -143,7 +143,7 @@ struct MacScopeRootView: View {
       .minimumScaleFactor(0.85)
       .help("Author Homepage")
       Link(destination: AppLinks.github) {
-        GitHubLinkLabel(title: "Project: great-mac-scope", iconSize: 12)
+        GitHubLinkLabel(title: "Project: mac-scope", iconSize: 12)
       }
       .lineLimit(1)
       .minimumScaleFactor(0.85)
