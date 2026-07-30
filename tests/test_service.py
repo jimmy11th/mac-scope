@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import threading
 from datetime import datetime
 
@@ -70,3 +71,15 @@ def test_process_filter_supports_text_user_and_pid() -> None:
     assert service.all_processes("user:ali") == (process,)
     assert service.all_processes("pid:424") == (process,)
     assert service.all_processes("missing") == ()
+
+
+def test_hidden_macscope_processes_include_native_host(monkeypatch) -> None:
+    host = make_process(pid=4242, name="MacScopeShell")
+    child = make_process(pid=os.getpid(), name="macscope")
+    other = make_process(pid=5151, name="other")
+    service = service_with([host, child, other])
+    service.show_self = False
+    monkeypatch.setenv("MACSCOPE_HOST_PID", str(host.pid))
+
+    assert service.all_processes() == (other,)
+    assert service.ranked(Resource.CPU) == (other,)

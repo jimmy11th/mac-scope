@@ -52,6 +52,20 @@ def test_pid_reuse_guard_refuses_mismatched_identity() -> None:
         child.wait(timeout=2)
 
 
+def test_native_host_process_is_protected(monkeypatch) -> None:
+    child = subprocess.Popen(["/bin/sleep", "30"])
+    process = psutil.Process(child.pid)
+    monkeypatch.setenv("MACSCOPE_HOST_PID", str(child.pid))
+    try:
+        result = ProcessController().terminate(sample_for(process))
+        assert not result.ok
+        assert "will not signal" in result.message
+        assert child.poll() is None
+    finally:
+        child.kill()
+        child.wait(timeout=2)
+
+
 def test_pause_resume_priority_and_terminate_child() -> None:
     child = subprocess.Popen(["/bin/sleep", "30"])
     process = psutil.Process(child.pid)

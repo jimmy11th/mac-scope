@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import threading
 import time
 from collections import defaultdict, deque
@@ -18,6 +17,7 @@ from macscope.models import (
     ProcessSample,
     Resource,
 )
+from macscope.process_guard import protected_pids
 
 
 class MonitorService:
@@ -100,11 +100,11 @@ class MonitorService:
         snapshot = self.latest
         if snapshot is None:
             return ()
+        hidden_pids = protected_pids() if not self.show_self else ()
         processes = [
             process
             for process in snapshot.processes
-            if self.matches_filter(process, filter_text)
-            and (self.show_self or process.pid != os.getpid())
+            if self.matches_filter(process, filter_text) and process.pid not in hidden_pids
         ]
         key = {
             Resource.CPU: lambda process: process.cpu_score,
@@ -120,11 +120,11 @@ class MonitorService:
         snapshot = self.latest
         if snapshot is None:
             return ()
+        hidden_pids = protected_pids() if not self.show_self else ()
         matches = [
             process
             for process in snapshot.processes
-            if self.matches_filter(process, query)
-            and (self.show_self or process.pid != os.getpid())
+            if self.matches_filter(process, query) and process.pid not in hidden_pids
         ]
         return tuple(sorted(matches, key=lambda process: process.cpu_score, reverse=True))
 

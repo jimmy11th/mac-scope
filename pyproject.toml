@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/shenmuoso/great-mac-scope"
+Repository = "https://github.com/shenmuoso/mac-scope"
 
 [project.scripts]
 macscope = "macscope.app:main"

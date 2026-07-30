@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import os
 import signal
 
 import psutil
 
 from macscope.i18n import Localizer
 from macscope.models import ActionResult, ProcessSample
+from macscope.process_guard import protected_pids
 
 
 class ProcessController:
@@ -16,7 +16,7 @@ class ProcessController:
     def _verified_process(
         self, target: ProcessSample
     ) -> tuple[psutil.Process | None, ActionResult | None]:
-        if target.pid in {0, os.getpid()}:
+        if target.pid in protected_pids():
             return None, ActionResult(False, self.localizer("controller.self_signal"))
         try:
             process = psutil.Process(target.pid)
