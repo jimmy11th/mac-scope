@@ -1,114 +1,192 @@
 <p align="center">
-  <img src="native/Resources/MacScopeIcon.png" width="132" alt="MacScope icon">
+  <img src="native/Resources/MacScopeIcon.png" width="128" alt="MacScope 图标">
 </p>
 
 <h1 align="center">MacScope</h1>
 
 <p align="center">
-  一款使用 SwiftUI 与 AppKit 构建的原生 macOS 系统监控、进程管理与维护工具。
+  <strong>为 macOS 独占打造的轻量系统监控与维护工具</strong>
 </p>
 
 <p align="center">
-  <strong>macOS 13+</strong> · <strong>Apple Silicon / Intel</strong> · <strong>English / 简体中文</strong>
+  看清资源占用，管理活跃进程，释放磁盘空间，干净卸载应用。
 </p>
 
-MacScope 将 CPU、温度、内存、磁盘和网络状态集中在原生窗口与菜单栏看板中，同时提供可排序的进程列表、进程详情，以及垃圾清理、应用卸载、大文件、重复文件和内存释放工具。原生应用独立运行，不依赖终端、Python、Textual 或 `uv`。
+<p align="center">
+  <a href="https://github.com/shenmuoso/mac-scope/releases"><strong>下载最新版</strong></a>
+  ·
+  <a href="#核心功能">功能介绍</a>
+  ·
+  <a href="https://github.com/shenmuoso/mac-scope/issues">反馈问题</a>
+</p>
 
-## 界面预览
+<p align="center">
+  <img src="https://img.shields.io/badge/version-0.4.8-1677ff" alt="Version 0.4.8">
+  <img src="https://img.shields.io/badge/macOS-13%2B-111111?logo=apple" alt="macOS 13+">
+  <img src="https://img.shields.io/badge/SwiftUI%20%2B%20AppKit-Native-f05138?logo=swift" alt="SwiftUI and AppKit">
+  <img src="https://img.shields.io/badge/language-English%20%7C%20简体中文-34c759" alt="English and Simplified Chinese">
+</p>
 
-### 系统概览与进程排行
+> [!TIP]
+> **0.4.8 新增原生菜单栏看板。** 无需打开主窗口，也能随时查看 CPU、内存、磁盘、网络、温度和 Top 进程。
 
-![MacScope 系统概览与进程排行](docs/images/macscope-overview.png)
+MacScope 把一台 Mac 最值得关注的状态集中在一个清爽的原生界面中。它由 SwiftUI 与 AppKit 构建，不包含 Electron、内置浏览器或额外运行时；无需终端、Python 和 Homebrew，安装后即可使用。0.4.8 的 DMG 约 `3.8 MB`，轻巧，但该有的监控与维护能力都在。
 
-### 垃圾扫描与选择性清理
+![MacScope 系统概览、资源状态与进程排行](docs/images/macscope-overview.png)
 
-![MacScope 垃圾清理](docs/images/macscope-junk-cleanup.png)
+## 为什么选择 MacScope
 
-### 应用扫描、状态与卸载
+| | 你得到的体验 |
+| --- | --- |
+| **真正原生** | 标准 macOS 窗口、菜单、表格、设置、授权对话框与深浅色外观 |
+| **轻量直接** | 小体积、无额外运行时，不用为了看资源占用再运行一个沉重的网页容器 |
+| **信息集中** | CPU、温度、内存、磁盘、网络、进程和清理工具都在同一个应用里 |
+| **操作透明** | 扫描结果、文件路径、处理进度和失败原因都清晰可见，删除前由你决定 |
+| **本地优先** | 监控与文件分析均在本机完成，不上传系统状态和扫描结果 |
 
-![MacScope 应用程序管理](docs/images/macscope-applications.png)
+## 核心功能
 
-## 主要功能
+### 原生菜单栏监控
 
-### 实时系统概览
+不必一直把窗口放在桌面上。MacScope 可以常驻菜单栏，用最短的视线距离告诉你 Mac 当前是否繁忙。
 
-- 显示 CPU 总占用、用户占用、系统占用和 SoC 温度。
-- 显示内存已用、总量、可用量和动态占用颜色。
-- 显示数据卷已用/总容量，以及实时磁盘读取和写入速率。
-- 显示实时网络下载和上传速率。
-- 进度颜色会根据占用率、网速和温度区间动态变化。
-- 支持暂停监控、立即刷新，以及 `0.5`、`1`、`2`、`5` 秒刷新频率。
+- 只显示黑白剪影图标，或紧凑显示最多三个实时指标。
+- 自由选择 CPU、内存、磁盘、网络和温度，并调整显示顺序。
+- 点击图标展开看板，查看各项指标最近 1 分钟的变化。
+- 查看按 CPU、内存、磁盘或网络排序的 Top 进程。
+- 自定义看板模块与进程数量；关闭主窗口后仍可继续监控。
+
+### 实时资源监控
+
+当风扇突然加速、机器发热或网络变慢时，不再靠猜。
+
+- **CPU：** 总占用、用户占用、系统占用与 SoC 温度。
+- **内存：** 已用、总量、可用量与实时占用比例。
+- **磁盘：** 数据卷容量、读取速率和写入速率。
+- **网络：** 实时下载与上传速率。
+- **动态状态色：** 根据占用率、网速和温度区间快速识别当前状态。
+- **灵活刷新：** 支持暂停、立即刷新，以及 `0.5`、`1`、`2`、`5` 秒刷新频率。
 
 ### 进程监控与管理
 
-- 默认显示 Top 20，可配置为 Top 5、10、20 或 50。
-- 在一个表格中查看进程名称、PID、CPU、内存、磁盘读写、网络上下行、线程数和运行时间。
-- 点击任意表头即可升序或降序排序。
-- 按名称或 PID 搜索进程。
-- 双击进程，或使用“进程信息”，打开右侧详情面板。
-- 查看所选进程最近 1 分钟的 CPU、内存和 I/O 趋势。
-- 在确认后正常退出或强制退出进程。
+一个表格看清是谁正在消耗你的 Mac，并直接采取行动。
 
-### 菜单栏看板
+- 集中查看进程名称、PID、CPU、内存、磁盘读写、网络上下行、线程数和运行时间。
+- 点击任意表头升序或降序排序，快速找到资源占用最高的进程。
+- 按名称或 PID 搜索，Top 行数可设置为 5、10、20 或 50。
+- 双击进程打开详情，查看最近 1 分钟的 CPU、内存与 I/O 趋势。
+- 支持正常退出与强制退出，并在执行前进行确认。
 
-- 使用随浅色/深色菜单栏自动变化的单色监控图标。
-- 菜单栏可只显示图标，也可紧凑显示最多三个实时指标。
-- 点击图标可查看 CPU、内存、磁盘、网络、温度的最近 1 分钟趋势。
-- 可显示按 CPU、内存、磁盘或网络排序的 Top 进程，并从菜单栏直接打开进程详情。
-- 可在“设置 > 菜单栏”中启用、隐藏、选择指标、调整模块顺序和进程数量。
-- 关闭主窗口后，菜单栏监控仍可继续运行。
+### 垃圾扫描与清理
 
-### 系统维护工具
+清理不是一个模糊的“立即加速”按钮。MacScope 会先告诉你找到了什么，再由你决定删除什么。
 
-| 工具 | 能力 |
+- 扫描用户缓存、日志、诊断报告和开发者文件。
+- 按类别查看大小、路径和具体项目，并支持逐项选择。
+- 清理时显示当前文件、总体进度和每一项处理结果。
+- 缓存可设置为移到废纸篓或永久删除，默认采用更稳妥的废纸篓模式。
+- 无法处理的项目保留明确原因，解决权限问题后可以重试。
+
+![MacScope 垃圾扫描、项目选择与清理结果](docs/images/macscope-junk-cleanup.png)
+
+### 应用卸载与残留清除
+
+卸载应用不应只把一个图标拖走。MacScope 将应用本体与相关数据放在同一个确认流程中处理。
+
+- 扫描标准应用目录并显示应用状态、位置和大小。
+- 识别 Bundle ID、相关数据以及系统中已注册的其他应用副本。
+- 在独立确认界面中检查应用本体和每一项残留文件。
+- 显示卸载路径、实时进度、成功结果和失败原因。
+- 先确认应用本体能够移除，再处理相关数据，避免留下一个被清空数据但仍存在的应用。
+
+![MacScope 应用扫描、卸载与残留清除](docs/images/macscope-applications.png)
+
+### 磁盘与资源管理
+
+空间去了哪里，MacScope 帮你把答案列出来。
+
+| 工具 | 用途 |
 | --- | --- |
-| 垃圾清理 | 扫描用户缓存、日志、诊断报告和开发者文件，逐项选择后清理 |
-| 应用卸载 | 选择单个应用，同时检查其 Bundle ID、相关数据和其他已安装副本 |
-| 大文件 | 在自定义文件夹中查找超过指定阈值的文件 |
-| 重复文件 | 通过大小和内容哈希确认重复文件，并确保每组至少保留一份 |
-| 内存释放 | 请求 macOS 释放符合条件的非活跃文件缓存，不会关闭正在运行的应用 |
+| **大文件** | 在指定文件夹中查找超过阈值的文件，按大小快速定位空间占用 |
+| **重复文件** | 通过文件大小和内容哈希确认重复项，并确保每组至少保留一份 |
+| **快速内存释放** | 请求 macOS 回收符合条件的非活跃文件缓存，不关闭正在运行的应用 |
 
-所有扫描和删除操作都会显示具体路径、当前项目、总体进度和每一项的处理结果。失败项目会保留原因，并可在权限问题解决后重试。
+大文件和重复文件默认扫描当前用户的 `Downloads`、`Desktop`、`Documents` 和 `Movies`，也可以在设置中添加或移除扫描目录。
 
-### 原生 macOS 体验
+## 常见使用场景
 
-- SwiftUI/AppKit 原生窗口、工具栏、表格、菜单、系统设置和标准授权对话框。
-- 可调整大小、全屏显示，并支持跟随系统、浅色和深色外观。
-- 原生半透明侧栏，可单独启用并调整透明度。
-- 系统、石墨色和高对比度三套主题；系统主题跟随 macOS 强调色。
-- English 为默认语言，可切换为简体中文。
-- 两套无底座 Dock 图标，可在设置中即时切换并持久化。
-- 应用内帮助、关于、作者主页和项目主页入口。
+- **Mac 突然发热：** 按 CPU 排序，找出持续高占用的进程，再查看它最近 1 分钟的活动。
+- **内存压力升高：** 按内存排序确认主要占用者，必要时使用快速内存释放。
+- **磁盘空间不足：** 依次检查垃圾、大文件和重复文件，把可回收空间变成清晰列表。
+- **应用卸载不干净：** 选择应用，同时检查相关数据和其他副本，再统一确认处理。
+- **只想快速看一眼：** 在菜单栏显示 CPU、内存或网速，不必打开主窗口。
+
+## 下载与安装
+
+1. 前往 [GitHub Releases](https://github.com/shenmuoso/mac-scope/releases) 下载最新的 `MacScope-*.dmg`。
+2. 打开 DMG，将 `MacScope.app` 拖入 `Applications` 文件夹。
+3. 从“应用程序”启动 MacScope。
+
+> [!IMPORTANT]
+> 当前 Release 使用 ad-hoc 开发签名，尚未完成 Apple Developer ID 公证。如果 Gatekeeper 阻止首次启动，请先确认文件来自本仓库，然后在 Finder 中右键 `MacScope.app` 并选择“打开”。MacScope 不会要求你在应用自己的界面中输入管理员密码。
+
+## 个性化设置
+
+所有设置使用 macOS `UserDefaults` 持久化，重启应用后仍会保留。
+
+| 类别 | 可配置内容 |
+| --- | --- |
+| **监控** | 0.5/1/2/5 秒刷新频率、Top 5/10/20/50、摄氏度或华氏度 |
+| **菜单栏** | 开关、仅图标或紧凑数据、最多三个指标、模块顺序、进程排序与数量 |
+| **外观** | 跟随系统、浅色、深色、主题、侧栏透明度和两套 Dock 图标 |
+| **清理** | 缓存处理方式、清理前确认、大文件阈值、重复文件阈值和扫描目录 |
+| **语言** | English 或简体中文；默认使用 English |
+
+设置文件由系统保存在：
+
+```text
+~/Library/Preferences/com.shenmuoso.macscope.plist
+```
+
+## 隐私、权限与安全
+
+- 系统指标、进程信息和扫描结果只在本机处理，MacScope 不上传这些数据。
+- 文件默认移到废纸篓，MacScope 不会自动清空废纸篓。
+- 应用、应用残留、大文件和重复文件始终移到废纸篓，不会直接永久删除。
+- 只有可重建缓存和开发者文件可以在设置允许时永久删除。
+- 某些用户资源库路径需要“完全磁盘访问权限”，可从“设置 > 清理 > 权限”打开对应系统设置。
+- 移除受保护应用或释放文件缓存时，MacScope 使用 macOS 标准管理员授权对话框。
+- MacScope 不读取、不接收也不保存管理员密码。
+- 扫描会跳过符号链接和应用包内部，避免越过用户选择的目录边界。
 
 ## 系统要求
 
-### 运行应用
-
 - macOS 13 Ventura 或更高版本。
-- 支持 Apple Silicon 和 Intel Mac。
-- 温度读取依赖本机可用的 IOHID 传感器。部分机型或 macOS 版本可能显示“不可用”，不影响其他监控功能。
-- 原生应用不需要安装 Python、Textual、Homebrew 或其他运行时。
+- 当前 GitHub Release DMG 面向 Apple Silicon Mac；Intel Mac 可以使用匹配的 Swift 工具链从源码构建。
+- 原生应用无需 Python、Textual、Homebrew 或其他运行时。
+- 温度读取依赖当前机型和 macOS 暴露的 IOHID 传感器。温度显示“不可用”时，其他监控功能仍可正常工作。
 
-### 从源码构建
+## 常见问题
 
-- 推荐 Xcode 16 或匹配的 Swift 6 工具链。
-- 已安装 Xcode Command Line Tools：
+### 为什么首次采样的 CPU、磁盘或网络速率是 0？
 
-```bash
-xcode-select --install
-```
+速率需要比较前后两次系统计数才能计算。等待一个刷新周期后即可显示实时值。
 
-## 安装
+### 为什么有些文件显示需要完全磁盘访问权限？
 
-### 使用 DMG
+macOS 会保护部分用户资源库目录。MacScope 只会明确提示权限问题，不会绕过系统保护；授权后重新扫描即可。
 
-1. 从 [Releases](https://github.com/shenmuoso/mac-scope/releases) 下载最新的 DMG。
-2. 打开 DMG，将 `MacScope.app` 拖到 `Applications`。
-3. 从“应用程序”启动 MacScope。
+### 管理员授权时，MacScope 会看到我的密码吗？
 
-当前仓库生成的是 ad-hoc 签名的开发版本，尚未完成 Developer ID 公证。如果 Gatekeeper 阻止首次启动，请仅在确认构建来源可信的情况下，在 Finder 中右键应用并选择“打开”。
+不会。密码输入框由 macOS 提供，认证过程由系统处理，MacScope 只接收操作是否获准的结果。
 
-### 从源码运行
+### 为什么温度显示“不可用”？
+
+不同 Mac 和 macOS 版本暴露的传感器不同。这不影响 CPU、内存、磁盘、网络和进程监控。
+
+## 从源码构建
+
+需要 macOS 13+、Xcode Command Line Tools，以及推荐的 Swift 6 工具链。
 
 ```bash
 git clone git@github.com:shenmuoso/mac-scope.git
@@ -116,19 +194,13 @@ cd mac-scope
 native/scripts/run_app.sh debug
 ```
 
-脚本会编译、ad-hoc 签名并打开应用。产物位于：
-
-```text
-native/build/MacScope.app
-```
-
-只构建应用而不启动：
+只构建原生 App：
 
 ```bash
 native/scripts/build_app.sh release
 ```
 
-构建可分发的压缩 DMG：
+构建可发布的 DMG：
 
 ```bash
 native/scripts/build_dmg.sh release
@@ -140,123 +212,11 @@ native/scripts/build_dmg.sh release
 native/build/MacScope-0.4.8.dmg
 ```
 
-也可以指定输出路径：
+仓库仍保留早期 Python/Textual 终端版本用于兼容与历史参考，但它不是当前原生应用的运行依赖。
 
-```bash
-native/scripts/build_dmg.sh release ~/Desktop/MacScope.dmg
-```
+## 项目与反馈
 
-## 使用方法
-
-### 查看系统与进程状态
-
-1. 启动后进入“概览”。顶部显示 CPU、内存、磁盘和网络实时状态。
-2. 在进程表中点击表头，按当前关注的资源排序。
-3. 使用工具栏搜索框按进程名称或 PID 过滤。
-4. 选择进程后点击“进程信息”，或直接双击该行，查看最近 1 分钟趋势。
-5. 使用“进程操作”正常退出或强制退出进程。MacScope 不允许终止自身或 PID 1，macOS 也会阻止未获授权的受保护进程操作。
-
-### 清理文件
-
-1. 从侧栏进入垃圾、大文件或重复文件工具。
-2. 点击扫描，等待路径和大小列表完成。
-3. 检查每一项并选择需要移除的文件。
-4. 确认后执行清理，并在当前页面查看逐项进度与结果。
-
-大文件和重复文件默认扫描当前用户的 `Downloads`、`Desktop`、`Documents` 和 `Movies`。可以在“设置 > 清理 > 扫描文件夹”中修改。
-
-### 卸载应用及残留
-
-1. 进入“应用程序”，扫描标准应用目录。
-2. 选择一个应用并打开卸载确认界面。
-3. 检查主应用、相同 Bundle ID 的其他副本，以及检测到的相关数据。
-4. 选择需要一并移除的项目后执行卸载。
-
-MacScope 会先处理应用本体，再处理其相关数据。如果应用本体无法移除，相关数据不会被盲目删除。正在运行的应用需要先退出。
-
-## 设置
-
-设置使用 macOS `UserDefaults` 持久化，应用重启后仍会保留。
-
-| 设置 | 可选值 | 默认值 |
-| --- | --- | --- |
-| 语言 | English、简体中文 | English |
-| 刷新频率 | 0.5、1、2、5 秒 | 2 秒 |
-| 进程行数 | 5、10、20、50 | 20 |
-| 温度单位 | 摄氏度、华氏度 | 摄氏度 |
-| 外观 | 跟随系统、浅色、深色 | 跟随系统 |
-| 侧栏透明 | 开/关，0% 至 100% | 开，70% |
-| 主题 | 系统、石墨色、高对比度 | 系统 |
-| Dock 图标 | 简洁、详细 | 简洁 |
-| 菜单栏显示 | 关闭、仅图标、紧凑数据 | 开启，紧凑数据 |
-| 菜单栏指标 | CPU、内存、磁盘、网络、温度，最多 3 项 | CPU、内存 |
-| 菜单栏进程 | 排序指标、3/5/8/10 行 | CPU，5 行 |
-| 缓存处理 | 移到废纸篓、永久删除 | 移到废纸篓 |
-| 清理前确认 | 开/关 | 开 |
-| 大文件阈值 | 100 MB、500 MB、1 GB、5 GB | 500 MB |
-| 重复文件最小值 | 1 MB、10 MB、100 MB、500 MB | 10 MB |
-
-原生设置由系统保存在：
-
-```text
-~/Library/Preferences/com.shenmuoso.macscope.plist
-```
-
-“还原所有设置”会恢复上表默认值。扫描结果、文件选择和破坏性操作确认只在当前会话中保留。
-
-Dock 图标选择会立即影响当前运行应用的程序坞和应用切换器图标。macOS 不提供类似 iOS 的可替换 Bundle 图标机制，因此 Finder 中的应用文件始终使用默认“简洁”图标。
-
-## 权限与安全
-
-- 所有系统数据均在本机采集和处理，MacScope 不上传监控数据。
-- 文件默认移到废纸篓，MacScope 不会自动清空废纸篓。
-- 只有可重建缓存和开发者文件在选择“永久删除”时会直接删除；应用、残留、大文件和重复文件仍移到废纸篓。
-- 某些用户资源库路径需要“完全磁盘访问权限”。可以从“设置 > 清理 > 权限”直接打开系统设置。
-- 移除受保护的 `/Applications` 应用或释放文件缓存时，MacScope 会使用标准 macOS 管理员授权对话框。
-- MacScope 不显示自己的密码输入框，也不会读取或保存管理员密码。
-- 扫描时会跳过符号链接和应用包内部，避免越过用户选择的目录边界。
-
-## 数据说明与限制
-
-- macOS 允许多核进程的 CPU 占用超过 100%。
-- 磁盘和网络速率由两次采样之间的计数差计算，因此首次采样显示为 0。
-- 进程网络速率依赖 macOS 提供的本机进程网络统计，受系统权限和采样可用性影响。
-- 温度仅在当前硬件和系统暴露可用传感器时显示。
-- 当前开发构建使用 ad-hoc 签名，适合本地测试，不等同于已公证的公开发行版本。
-
-## 开发
-
-直接编译 Swift Package：
-
-```bash
-swift build --package-path native --configuration debug
-```
-
-主要目录：
-
-```text
-native/
-├── Package.swift                 Swift Package 定义
-├── Resources/                    图标、Info.plist 与本地化资源
-├── Sources/MacScopeNative/       SwiftUI/AppKit 原生应用
-└── scripts/                      App 与 DMG 构建脚本
-
-src/macscope/                     早期 Textual 终端版本
-tests/                            终端版本测试
-```
-
-### 早期终端版本
-
-仓库仍保留基于 Python/Textual 的终端版本，供兼容和历史参考。它不是当前原生应用的运行依赖。
-
-```bash
-uv sync
-uv run macscope
-```
-
-终端版本需要 Python 3.11 或更高版本，以及支持 Unicode 和 256 色的终端。
-
-## 项目地址
-
-- Repository: <https://github.com/shenmuoso/mac-scope>
-- Author: <https://github.com/shenmuoso>
+- [下载与历史版本](https://github.com/shenmuoso/mac-scope/releases)
+- [提交问题或功能建议](https://github.com/shenmuoso/mac-scope/issues)
+- [项目主页](https://github.com/shenmuoso/mac-scope)
+- [作者主页](https://github.com/shenmuoso)
