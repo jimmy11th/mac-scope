@@ -10,6 +10,7 @@ struct MacScopeNativeApp: App {
     WindowGroup("MacScope") {
       MacScopeRootView(monitor: monitor)
         .environmentObject(monitor)
+        .environmentObject(monitor.metrics)
         .environmentObject(settings)
         .environmentObject(maintenance)
         .environment(\.locale, settings.language.locale)

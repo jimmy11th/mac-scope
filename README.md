@@ -19,8 +19,8 @@ process table and guarded macOS maintenance tools.
   copies available as optional items in the same removal operation
 - Per-item cleanup paths, states, animated activity feedback, and determinate progress
   remain visible after each cleanup operation
-- Responsive low-overhead monitoring, compact native overlay scrollers, and a sidebar
-  material that samples content behind the MacScope window
+- Responsive low-overhead monitoring, compact native overlay scrollers, and an adjustable
+  translucent sidebar that samples content behind the MacScope window
 - Native Help and About interfaces with direct access to the GitHub project
 - Responsive process/tools workspace with compact tabs
 - Runtime-adjustable Top process count, defaulting to five rows
@@ -85,7 +85,7 @@ Build a compressed development DMG with:
 native/scripts/build_dmg.sh
 ```
 
-The default image is written to `native/build/MacScope-0.4.2-native-polish.dmg`. The
+The default image is written to `native/build/MacScope-0.4.3-sidebar-performance.dmg`. The
 app is ad-hoc signed and not notarized, so it is intended for local development rather
 than public distribution.
 

@@ -3,8 +3,20 @@ import Darwin
 import Foundation
 
 @MainActor
-final class SystemMonitor: ObservableObject {
+final class SystemMetricsStore: ObservableObject {
   @Published private(set) var snapshot = SystemSnapshot.empty
+
+  func update(from source: SystemSnapshot) {
+    var metrics = source
+    metrics.processes = []
+    snapshot = metrics
+  }
+}
+
+@MainActor
+final class SystemMonitor: ObservableObject {
+  @Published private(set) var processes: [ProcessRow] = []
+  let metrics = SystemMetricsStore()
   private(set) var processHistory: [ProcessHistoryPoint] = []
   private(set) var isRefreshing = false
   @Published var isPaused = false
@@ -14,7 +26,10 @@ final class SystemMonitor: ObservableObject {
   private let sampler = SystemSampler()
   private var monitoringTask: Task<Void, Never>?
   private var trackedPID: Int32?
-  private var processSamplingEnabled = true
+  private var processSamplingRequested = false
+  private var processSamplingEnabled = false
+  private var processResumeTask: Task<Void, Never>?
+  private var processSamplingGeneration = 0
   private var lastProcessSampleAt = -TimeInterval.infinity
 
   func start() {
@@ -34,6 +49,8 @@ final class SystemMonitor: ObservableObject {
   func stop() {
     monitoringTask?.cancel()
     monitoringTask = nil
+    processResumeTask?.cancel()
+    processResumeTask = nil
   }
 
   func refresh(forceProcessSample: Bool = false) async {
@@ -47,14 +64,18 @@ final class SystemMonitor: ObservableObject {
     if shouldSampleProcesses {
       lastProcessSampleAt = now
     }
-    var nextSnapshot = await sampler.sample(includeProcesses: shouldSampleProcesses)
-    if shouldSampleProcesses {
+    let samplingGeneration = processSamplingGeneration
+    let nextSnapshot = await sampler.sample(includeProcesses: shouldSampleProcesses)
+    metrics.update(from: nextSnapshot)
+    let shouldPublishProcesses =
+      shouldSampleProcesses
+      && processSamplingRequested
+      && samplingGeneration == processSamplingGeneration
+    if shouldPublishProcesses {
       recordHistory(for: nextSnapshot)
-    } else {
-      nextSnapshot.processes = snapshot.processes
+      processes = nextSnapshot.processes
     }
     isRefreshing = false
-    snapshot = nextSnapshot
   }
 
   func refreshNow(forceProcessSample: Bool = true) {
@@ -62,11 +83,30 @@ final class SystemMonitor: ObservableObject {
   }
 
   func setProcessSamplingEnabled(_ isEnabled: Bool) {
-    guard processSamplingEnabled != isEnabled else { return }
-    processSamplingEnabled = isEnabled
-    if isEnabled {
-      lastProcessSampleAt = -TimeInterval.infinity
-      refreshNow(forceProcessSample: true)
+    guard processSamplingRequested != isEnabled else { return }
+    processSamplingRequested = isEnabled
+    processSamplingGeneration += 1
+    processResumeTask?.cancel()
+    processResumeTask = nil
+
+    guard isEnabled else {
+      processSamplingEnabled = false
+      return
+    }
+
+    processSamplingEnabled = false
+    let generation = processSamplingGeneration
+    processResumeTask = Task { [weak self] in
+      try? await Task.sleep(nanoseconds: 250_000_000)
+      guard let self, !Task.isCancelled,
+        self.processSamplingRequested,
+        self.processSamplingGeneration == generation
+      else {
+        return
+      }
+      self.processSamplingEnabled = true
+      self.lastProcessSampleAt = -TimeInterval.infinity
+      await self.refresh(forceProcessSample: true)
     }
   }
 

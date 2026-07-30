@@ -1,11 +1,11 @@
 import SwiftUI
 
 struct MemoryToolView: View {
-  @EnvironmentObject private var monitor: SystemMonitor
+  @EnvironmentObject private var metrics: SystemMetricsStore
   @EnvironmentObject private var settings: AppSettings
   @EnvironmentObject private var store: MaintenanceStore
 
-  private var memory: MemoryUsage { monitor.snapshot.memory }
+  private var memory: MemoryUsage { metrics.snapshot.memory }
 
   var body: some View {
     VStack(spacing: 0) {

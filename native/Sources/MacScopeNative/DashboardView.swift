@@ -56,12 +56,12 @@ struct DashboardView: View {
 
   private var selectedProcess: ProcessRow? {
     guard let pid = selection else { return nil }
-    return monitor.snapshot.processes.first { $0.pid == pid }
+    return monitor.processes.first { $0.pid == pid }
   }
 
   private var visibleProcesses: [ProcessRow] {
     let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    let filtered = monitor.snapshot.processes.filter { process in
+    let filtered = monitor.processes.filter { process in
       query.isEmpty
         || process.name.lowercased().contains(query)
         || String(process.pid).contains(query)
@@ -85,7 +85,6 @@ struct DashboardView: View {
     HStack(spacing: 0) {
       VStack(spacing: 0) {
         SystemOverview(
-          snapshot: monitor.snapshot,
           temperatureUnit: settings.temperatureUnit,
           language: settings.language,
           theme: settings.activeTheme
@@ -94,7 +93,10 @@ struct DashboardView: View {
         processHeader
         processTable
         Divider()
-        statusBar
+        SystemStatusBar(
+          isPaused: monitor.isPaused,
+          processCount: monitor.processes.count
+        )
       }
       if showsInspector {
         Divider()
@@ -299,7 +301,7 @@ struct DashboardView: View {
     }
     .contextMenu(forSelectionType: ProcessRow.ID.self) { selected in
       if let pid = selected.first,
-        let process = monitor.snapshot.processes.first(where: { $0.pid == pid })
+        let process = monitor.processes.first(where: { $0.pid == pid })
       {
         Button("Show Process Info") { showInspector() }
         Divider()
@@ -310,24 +312,6 @@ struct DashboardView: View {
       }
     }
     .compactNativeScrollers()
-  }
-
-  private var statusBar: some View {
-    HStack {
-      if monitor.isPaused {
-        Label("Monitoring Paused", systemImage: "pause.circle.fill")
-          .foregroundStyle(.secondary)
-      } else {
-        Text("Updated \(monitor.snapshot.timestamp.formatted(date: .omitted, time: .standard))")
-          .foregroundStyle(.secondary)
-      }
-      Spacer()
-      Text("\(monitor.snapshot.processes.count) processes")
-        .foregroundStyle(.secondary)
-    }
-    .font(.caption)
-    .padding(.horizontal, 12)
-    .frame(height: 28)
   }
 
   private func toggleInspector() {
@@ -361,13 +345,14 @@ struct DashboardView: View {
 }
 
 private struct SystemOverview: View {
-  let snapshot: SystemSnapshot
+  @EnvironmentObject private var metrics: SystemMetricsStore
+
   let temperatureUnit: TemperatureUnit
   let language: AppLanguage
   let theme: ThemePalette
 
   private var temperatureColor: Color {
-    switch snapshot.cpu.temperature.status {
+    switch metrics.snapshot.cpu.temperature.status {
     case .normal, .unavailable: .secondary
     case .warm: .orange
     case .hot: .red
@@ -375,6 +360,7 @@ private struct SystemOverview: View {
   }
 
   var body: some View {
+    let snapshot = metrics.snapshot
     HStack(spacing: 0) {
       MetricView(
         title: "CPU",
@@ -442,6 +428,31 @@ private struct SystemOverview: View {
 
   private func localized(_ key: String, _ arguments: CVarArg...) -> String {
     AppLocalization.string(key, language: language, arguments: arguments)
+  }
+}
+
+private struct SystemStatusBar: View {
+  @EnvironmentObject private var metrics: SystemMetricsStore
+
+  let isPaused: Bool
+  let processCount: Int
+
+  var body: some View {
+    HStack {
+      if isPaused {
+        Label("Monitoring Paused", systemImage: "pause.circle.fill")
+          .foregroundStyle(.secondary)
+      } else {
+        Text("Updated \(metrics.snapshot.timestamp.formatted(date: .omitted, time: .standard))")
+          .foregroundStyle(.secondary)
+      }
+      Spacer()
+      Text("\(processCount) processes")
+        .foregroundStyle(.secondary)
+    }
+    .font(.caption)
+    .padding(.horizontal, 12)
+    .frame(height: 28)
   }
 }
 

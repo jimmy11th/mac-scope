@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR=${0:A:h}
 NATIVE_ROOT=${SCRIPT_DIR:h}
 CONFIGURATION=${1:-release}
-OUTPUT_PATH=${2:-"$NATIVE_ROOT/build/MacScope-0.4.2-native-polish.dmg"}
+OUTPUT_PATH=${2:-"$NATIVE_ROOT/build/MacScope-0.4.3-sidebar-performance.dmg"}
 STAGING_DIR="$NATIVE_ROOT/build/dmg-root"
 
 case "$CONFIGURATION" in

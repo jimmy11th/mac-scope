@@ -2,8 +2,10 @@ import AppKit
 import SwiftUI
 
 struct CompactScrollerConfigurationView: NSViewRepresentable {
+  let clearsBackground: Bool
+
   func makeNSView(context: Context) -> NSView {
-    ScrollViewLocator()
+    ScrollViewLocator(clearsBackground: clearsBackground)
   }
 
   func updateNSView(_ view: NSView, context: Context) {
@@ -12,16 +14,28 @@ struct CompactScrollerConfigurationView: NSViewRepresentable {
 }
 
 private final class ScrollViewLocator: NSView {
+  private let clearsBackground: Bool
   private weak var configuredScrollView: NSScrollView?
   private var configurationScheduled = false
+  private var configurationAttempts = 0
+
+  init(clearsBackground: Bool) {
+    self.clearsBackground = clearsBackground
+    super.init(frame: .zero)
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
 
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
     configureWhenReady()
   }
 
-  override func layout() {
-    super.layout()
+  override func viewDidMoveToSuperview() {
+    super.viewDidMoveToSuperview()
     configureWhenReady()
   }
 
@@ -31,29 +45,57 @@ private final class ScrollViewLocator: NSView {
     DispatchQueue.main.async { [weak self] in
       guard let self else { return }
       self.configurationScheduled = false
-      self.configureNearestScrollView()
+      self.configurationAttempts += 1
+      if !self.configureNearestScrollView(), self.configurationAttempts < 4 {
+        self.configureWhenReady()
+      }
     }
   }
 
-  private func configureNearestScrollView() {
-    guard let contentView = window?.contentView, !bounds.isEmpty else { return }
+  private func configureNearestScrollView() -> Bool {
+    guard window != nil, !bounds.isEmpty else { return false }
     let markerFrame = convert(bounds, to: nil)
-    let candidates = scrollViews(in: contentView)
-    let bestMatch = candidates.max { lhs, rhs in
-      intersectionArea(of: lhs, with: markerFrame) < intersectionArea(of: rhs, with: markerFrame)
+    let scrollView: NSScrollView?
+    if let enclosingScrollView {
+      scrollView = enclosingScrollView
+    } else {
+      scrollView = nearestOverlappingScrollView(markerFrame: markerFrame)
     }
-    guard let scrollView = bestMatch,
-      intersectionArea(of: scrollView, with: markerFrame) > 0
-    else {
-      return
-    }
+    guard let scrollView else { return false }
 
+    configuredScrollView = scrollView
     scrollView.scrollerStyle = .overlay
     scrollView.autohidesScrollers = true
     scrollView.verticalScroller?.controlSize = .small
     scrollView.horizontalScroller?.controlSize = .small
+    if clearsBackground {
+      scrollView.drawsBackground = false
+      scrollView.backgroundColor = .clear
+      scrollView.contentView.drawsBackground = false
+      scrollView.contentView.backgroundColor = .clear
+      if let tableView = scrollView.documentView as? NSTableView {
+        tableView.backgroundColor = .clear
+      }
+    }
     scrollView.tile()
-    configuredScrollView = scrollView
+    return true
+  }
+
+  private func nearestOverlappingScrollView(markerFrame: NSRect) -> NSScrollView? {
+    var ancestor = superview
+    while let current = ancestor {
+      let matching = scrollViews(in: current).filter {
+        intersectionArea(of: $0, with: markerFrame) > 0
+      }
+      if let bestMatch = matching.max(by: {
+        intersectionArea(of: $0, with: markerFrame)
+          < intersectionArea(of: $1, with: markerFrame)
+      }) {
+        return bestMatch
+      }
+      ancestor = current.superview
+    }
+    return nil
   }
 
   private func scrollViews(in root: NSView) -> [NSScrollView] {
@@ -76,9 +118,9 @@ private final class ScrollViewLocator: NSView {
 }
 
 extension View {
-  func compactNativeScrollers() -> some View {
+  func compactNativeScrollers(clearsBackground: Bool = false) -> some View {
     background {
-      CompactScrollerConfigurationView()
+      CompactScrollerConfigurationView(clearsBackground: clearsBackground)
         .allowsHitTesting(false)
     }
   }

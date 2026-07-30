@@ -92,6 +92,20 @@ struct SettingsView: View {
           Text("Dark").tag(AppAppearance.dark)
         }
         .pickerStyle(.segmented)
+
+        Toggle("Translucent sidebar", isOn: $settings.sidebarTransparencyEnabled)
+
+        LabeledContent("Sidebar transparency") {
+          HStack(spacing: 10) {
+            Slider(value: $settings.sidebarTransparency, in: 0...1, step: 0.05)
+              .frame(width: 190)
+            Text(settings.sidebarTransparency, format: .percent.precision(.fractionLength(0)))
+              .foregroundStyle(.secondary)
+              .monospacedDigit()
+              .frame(width: 42, alignment: .trailing)
+          }
+        }
+        .disabled(!settings.sidebarTransparencyEnabled)
       }
 
       Section("Colors") {

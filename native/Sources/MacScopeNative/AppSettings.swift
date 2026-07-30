@@ -36,6 +36,8 @@ final class AppSettings: ObservableObject {
   private enum Key {
     static let language = "native.language"
     static let appearance = "native.appearance"
+    static let sidebarTransparencyEnabled = "native.sidebarTransparencyEnabled"
+    static let sidebarTransparency = "native.sidebarTransparency"
     static let refreshInterval = "native.refreshInterval"
     static let processLimit = "native.processLimit"
     static let temperatureUnit = "native.temperatureUnit"
@@ -54,6 +56,14 @@ final class AppSettings: ObservableObject {
 
   @Published var appearance: AppAppearance {
     didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) }
+  }
+
+  @Published var sidebarTransparencyEnabled: Bool {
+    didSet { defaults.set(sidebarTransparencyEnabled, forKey: Key.sidebarTransparencyEnabled) }
+  }
+
+  @Published var sidebarTransparency: Double {
+    didSet { defaults.set(sidebarTransparency, forKey: Key.sidebarTransparency) }
   }
 
   @Published var refreshInterval: Double {
@@ -116,6 +126,14 @@ final class AppSettings: ObservableObject {
     self.defaults = defaults
     language = AppLanguage(rawValue: defaults.string(forKey: Key.language) ?? "") ?? .english
     appearance = AppAppearance(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .system
+    sidebarTransparencyEnabled =
+      defaults.object(forKey: Key.sidebarTransparencyEnabled) == nil
+      ? true : defaults.bool(forKey: Key.sidebarTransparencyEnabled)
+    if defaults.object(forKey: Key.sidebarTransparency) == nil {
+      sidebarTransparency = 0.7
+    } else {
+      sidebarTransparency = min(1, max(0, defaults.double(forKey: Key.sidebarTransparency)))
+    }
 
     let savedInterval = defaults.double(forKey: Key.refreshInterval)
     refreshInterval = [0.5, 1, 2, 5].contains(savedInterval) ? savedInterval : 1
@@ -170,6 +188,8 @@ final class AppSettings: ObservableObject {
   func resetAll() {
     language = .english
     appearance = .system
+    sidebarTransparencyEnabled = true
+    sidebarTransparency = 0.7
     refreshInterval = 1
     processLimit = 5
     temperatureUnit = .celsius

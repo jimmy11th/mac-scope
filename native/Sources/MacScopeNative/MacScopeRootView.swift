@@ -35,13 +35,19 @@ private enum SidebarDestination: String, CaseIterable, Identifiable {
 }
 
 struct MacScopeRootView: View {
+  private static let destinationKey = "native.sidebarDestination"
+
   let monitor: SystemMonitor
+  @EnvironmentObject private var settings: AppSettings
+  @Environment(\.openWindow) private var openWindow
+  @State private var destination: SidebarDestination
 
-  @AppStorage("native.sidebarDestination") private var destinationRaw =
-    SidebarDestination.overview.rawValue
-
-  private var destination: SidebarDestination {
-    SidebarDestination(rawValue: destinationRaw) ?? .overview
+  init(monitor: SystemMonitor) {
+    self.monitor = monitor
+    let savedDestination = UserDefaults.standard.string(forKey: Self.destinationKey)
+    _destination = State(
+      initialValue: SidebarDestination(rawValue: savedDestination ?? "") ?? .overview
+    )
   }
 
   private var destinationSelection: Binding<SidebarDestination?> {
@@ -49,8 +55,18 @@ struct MacScopeRootView: View {
       get: { destination },
       set: {
         let nextDestination = $0 ?? .overview
-        destinationRaw = nextDestination.rawValue
-        monitor.setProcessSamplingEnabled(nextDestination == .overview)
+        guard destination != nextDestination else { return }
+        if destination == .overview {
+          monitor.setProcessSamplingEnabled(false)
+        }
+        destination = nextDestination
+        if nextDestination == .overview {
+          monitor.setProcessSamplingEnabled(true)
+        }
+        let rawValue = nextDestination.rawValue
+        DispatchQueue.main.async {
+          UserDefaults.standard.set(rawValue, forKey: Self.destinationKey)
+        }
       }
     )
   }
@@ -72,11 +88,14 @@ struct MacScopeRootView: View {
       .listStyle(.sidebar)
       .scrollContentBackground(.hidden)
       .background {
-        SidebarMaterialView()
+        SidebarMaterialView(
+          isEnabled: settings.sidebarTransparencyEnabled,
+          transparency: settings.sidebarTransparency
+        )
           .ignoresSafeArea()
           .allowsHitTesting(false)
       }
-      .compactNativeScrollers()
+      .compactNativeScrollers(clearsBackground: true)
       .navigationSplitViewColumnWidth(min: 180, ideal: 210, max: 260)
     } detail: {
       detailContent
@@ -86,6 +105,34 @@ struct MacScopeRootView: View {
     }
     .navigationSplitViewStyle(.balanced)
     .toolbar {
+      ToolbarItem(placement: .primaryAction) {
+        Menu {
+          Button {
+            openWindow(id: "help")
+          } label: {
+            Label("MacScope Help", systemImage: "questionmark.circle")
+          }
+
+          Button(action: AppLinks.openGitHub) {
+            Label(
+              "View Project on GitHub",
+              systemImage: "chevron.left.forwardslash.chevron.right"
+            )
+          }
+
+          Divider()
+
+          Button {
+            AboutPanel.show(language: settings.language)
+          } label: {
+            Label("About MacScope", systemImage: "info.circle")
+          }
+        } label: {
+          Label("Help & Information", systemImage: "questionmark.circle")
+        }
+        .help("Help & Information")
+      }
+
       ToolbarItem(placement: .primaryAction) {
         if #available(macOS 14.0, *) {
           SettingsLink {
@@ -108,6 +155,7 @@ struct MacScopeRootView: View {
   private func sidebarRow(_ item: SidebarDestination) -> some View {
     Label(item.title, systemImage: item.systemImage)
       .tag(item)
+      .listRowBackground(Color.clear)
   }
 
   @ViewBuilder
