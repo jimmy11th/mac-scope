@@ -137,11 +137,17 @@ struct MacScopeRootView: View {
   private var sidebarFooter: some View {
     VStack(alignment: .leading, spacing: 7) {
       Link(destination: AppLinks.author) {
-        Label("@shenmuoso", systemImage: "person.crop.circle")
+        GitHubLinkLabel(title: "Author: shenmuoso", iconSize: 12)
       }
+      .lineLimit(1)
+      .minimumScaleFactor(0.85)
+      .help("Author Homepage")
       Link(destination: AppLinks.github) {
-        Label("Project Homepage", systemImage: "arrow.up.right.square")
+        GitHubLinkLabel(title: "Project: great-mac-scope", iconSize: 12)
       }
+      .lineLimit(1)
+      .minimumScaleFactor(0.85)
+      .help("Project Homepage")
       Text("Version \(AppMetadata.version)")
         .foregroundStyle(.tertiary)
         .monospacedDigit()

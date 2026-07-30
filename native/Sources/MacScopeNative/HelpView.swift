@@ -90,7 +90,7 @@ struct HelpView: View {
           .font(.callout.monospaced())
           .textSelection(.enabled)
         Link(destination: AppLinks.github) {
-          Label("View Project on GitHub", systemImage: "safari")
+          GitHubLinkLabel(title: "View Project on GitHub")
         }
         .buttonStyle(.borderedProminent)
       }

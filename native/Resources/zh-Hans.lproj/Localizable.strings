@@ -212,8 +212,10 @@
 "Uninstall %@" = "卸载 %@";
 "About MacScope" = "关于 MacScope";
 "Project" = "项目";
-"GitHub Author" = "GitHub 作者";
+"Author Homepage" = "作者主页";
 "Project Homepage" = "项目主页";
+"Author: shenmuoso" = "作者主页：shenmuoso";
+"Project: great-mac-scope" = "项目主页：great-mac-scope";
 "Version %@ (%@)" = "版本 %@（构建 %@）";
 "MacScope is an open source macOS system utility." = "MacScope 是一款开源的 macOS 系统工具。";
 "MacScope Help" = "MacScope 帮助";

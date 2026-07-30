@@ -229,11 +229,11 @@ struct SettingsView: View {
       }
 
       Section("Project") {
-        LabeledContent("GitHub Author") {
-          Link("@shenmuoso", destination: AppLinks.author)
+        Link(destination: AppLinks.author) {
+          GitHubLinkLabel(title: "Author: shenmuoso")
         }
-        LabeledContent("Project Homepage") {
-          Link("great-mac-scope", destination: AppLinks.github)
+        Link(destination: AppLinks.github) {
+          GitHubLinkLabel(title: "Project: great-mac-scope")
         }
       }
 
@@ -244,10 +244,7 @@ struct SettingsView: View {
           Label("MacScope Help", systemImage: "questionmark.circle")
         }
         Button(action: AppLinks.openGitHub) {
-          Label(
-            "View Project on GitHub",
-            systemImage: "chevron.left.forwardslash.chevron.right"
-          )
+          GitHubLinkLabel(title: "View Project on GitHub")
         }
         Button {
           AboutPanel.show(language: settings.language)

@@ -85,7 +85,7 @@ Build a compressed development DMG with:
 native/scripts/build_dmg.sh
 ```
 
-The default image is written to `native/build/MacScope-0.4.4-translucent-sidebar.dmg`. The
+The default image is written to `native/build/MacScope-0.4.5-native-material.dmg`. The
 app is ad-hoc signed and not notarized, so it is intended for local development rather
 than public distribution.
 

@@ -212,8 +212,10 @@
 "Uninstall %@" = "Uninstall %@";
 "About MacScope" = "About MacScope";
 "Project" = "Project";
-"GitHub Author" = "GitHub Author";
+"Author Homepage" = "Author Homepage";
 "Project Homepage" = "Project Homepage";
+"Author: shenmuoso" = "Author: shenmuoso";
+"Project: great-mac-scope" = "Project: great-mac-scope";
 "Version %@ (%@)" = "Version %@ (%@)";
 "MacScope is an open source macOS system utility." = "MacScope is an open source macOS system utility.";
 "MacScope Help" = "MacScope Help";

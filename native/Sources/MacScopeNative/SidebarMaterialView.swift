@@ -19,17 +19,29 @@ struct SidebarMaterialView: NSViewRepresentable {
 final class AdjustableSidebarMaterialView: NSView {
   private let effectView = NSVisualEffectView()
   private let tintView = NSView()
+  private var isEnabled = true
+  private var transparency = 0.7
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     effectView.material = .sidebar
     effectView.blendingMode = .behindWindow
     effectView.state = .active
-    effectView.autoresizingMask = [.width, .height]
+    effectView.translatesAutoresizingMaskIntoConstraints = false
     tintView.wantsLayer = true
-    tintView.autoresizingMask = [.width, .height]
+    tintView.translatesAutoresizingMaskIntoConstraints = false
     addSubview(effectView)
     addSubview(tintView)
+    NSLayoutConstraint.activate([
+      effectView.leadingAnchor.constraint(equalTo: leadingAnchor),
+      effectView.trailingAnchor.constraint(equalTo: trailingAnchor),
+      effectView.topAnchor.constraint(equalTo: topAnchor),
+      effectView.bottomAnchor.constraint(equalTo: bottomAnchor),
+      tintView.leadingAnchor.constraint(equalTo: leadingAnchor),
+      tintView.trailingAnchor.constraint(equalTo: trailingAnchor),
+      tintView.topAnchor.constraint(equalTo: topAnchor),
+      tintView.bottomAnchor.constraint(equalTo: bottomAnchor),
+    ])
   }
 
   @available(*, unavailable)
@@ -37,17 +49,20 @@ final class AdjustableSidebarMaterialView: NSView {
     fatalError("init(coder:) has not been implemented")
   }
 
-  override func layout() {
-    super.layout()
-    effectView.frame = bounds
-    tintView.frame = bounds
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
+    updateAppearance()
   }
 
   func update(isEnabled: Bool, transparency: Double) {
+    self.isEnabled = isEnabled
+    self.transparency = min(1, max(0, transparency))
+    updateAppearance()
+  }
+
+  private func updateAppearance() {
     effectView.isHidden = !isEnabled
-    let normalizedTransparency = min(1, max(0, transparency))
-    effectView.alphaValue = isEnabled ? 1 - (normalizedTransparency * 0.45) : 0
-    let tintOpacity = isEnabled ? pow(1 - normalizedTransparency, 1.35) : 1
+    let tintOpacity = isEnabled ? 1 - transparency : 1
     tintView.layer?.backgroundColor = NSColor.windowBackgroundColor
       .withAlphaComponent(tintOpacity).cgColor
   }
