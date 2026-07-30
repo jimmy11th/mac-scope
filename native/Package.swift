@@ -3,35 +3,19 @@
 import PackageDescription
 
 let package = Package(
-  name: "MacScopeShell",
+  name: "MacScopeNative",
   platforms: [
     .macOS(.v13)
   ],
   products: [
-    .executable(name: "MacScopeShell", targets: ["MacScopeShell"]),
-    .executable(
-      name: "MacScopeShellConfigCheck",
-      targets: ["MacScopeShellConfigCheck"]
-    ),
-  ],
-  dependencies: [
-    .package(
-      url: "https://github.com/migueldeicaza/SwiftTerm.git",
-      exact: "1.15.0"
-    )
+    .executable(name: "MacScopeNative", targets: ["MacScopeNative"])
   ],
   targets: [
     .executableTarget(
-      name: "MacScopeShell",
-      dependencies: [
-        "MacScopeShellCore",
-        .product(name: "SwiftTerm", package: "SwiftTerm"),
+      name: "MacScopeNative",
+      linkerSettings: [
+        .linkedFramework("IOKit")
       ]
-    ),
-    .target(name: "MacScopeShellCore"),
-    .executableTarget(
-      name: "MacScopeShellConfigCheck",
-      dependencies: ["MacScopeShellCore"]
-    ),
+    )
   ]
 )
