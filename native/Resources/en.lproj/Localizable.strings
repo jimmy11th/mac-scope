@@ -11,6 +11,7 @@
 "General" = "General";
 "Appearance" = "Appearance";
 "Cleanup" = "Cleanup";
+"About" = "About";
 "Reset All Settings" = "Reset All Settings";
 "Reset all settings?" = "Reset all settings?";
 "Reset" = "Reset";
@@ -210,6 +211,10 @@
 "Version %@" = "Version %@";
 "Uninstall %@" = "Uninstall %@";
 "About MacScope" = "About MacScope";
+"Project" = "Project";
+"GitHub Author" = "GitHub Author";
+"Project Homepage" = "Project Homepage";
+"Version %@ (%@)" = "Version %@ (%@)";
 "MacScope is an open source macOS system utility." = "MacScope is an open source macOS system utility.";
 "MacScope Help" = "MacScope Help";
 "View Project on GitHub" = "View Project on GitHub";

@@ -21,65 +21,102 @@ final class SystemMonitor: ObservableObject {
   private(set) var isRefreshing = false
   @Published var isPaused = false
 
-  var refreshInterval: Double = 1
+  private(set) var refreshInterval: Double = 1
 
-  private let sampler = SystemSampler()
-  private var monitoringTask: Task<Void, Never>?
+  private let metricsSampler = SystemSampler()
+  private let processSampler = SystemSampler()
+  private var metricsMonitoringTask: Task<Void, Never>?
+  private var processMonitoringTask: Task<Void, Never>?
   private var trackedPID: Int32?
   private var processSamplingRequested = false
-  private var processSamplingEnabled = false
   private var processResumeTask: Task<Void, Never>?
   private var processSamplingGeneration = 0
-  private var lastProcessSampleAt = -TimeInterval.infinity
+  private var metricsRefreshing = false
+  private var processesRefreshing = false
 
   func start() {
-    guard monitoringTask == nil else { return }
-    monitoringTask = Task { [weak self] in
+    guard metricsMonitoringTask == nil else { return }
+    startMetricsMonitoring()
+  }
+
+  func updateRefreshInterval(_ interval: Double) {
+    let normalizedInterval = [0.5, 1, 2, 5].contains(interval) ? interval : 1
+    guard refreshInterval != normalizedInterval else { return }
+
+    refreshInterval = normalizedInterval
+
+    let wasMonitoringMetrics = metricsMonitoringTask != nil
+    let wasMonitoringProcesses = processMonitoringTask != nil
+    metricsMonitoringTask?.cancel()
+    metricsMonitoringTask = nil
+    processMonitoringTask?.cancel()
+    processMonitoringTask = nil
+
+    if wasMonitoringMetrics {
+      startMetricsMonitoring()
+    }
+    if wasMonitoringProcesses {
+      startProcessMonitoring(generation: processSamplingGeneration)
+    }
+  }
+
+  private func startMetricsMonitoring() {
+    metricsMonitoringTask = Task { [weak self] in
       guard let self else { return }
       while !Task.isCancelled {
+        let refreshStartedAt = ProcessInfo.processInfo.systemUptime
         if !isPaused {
-          await refresh(forceProcessSample: false)
+          await refreshMetrics()
         }
-        let delay = UInt64(max(0.2, refreshInterval) * 1_000_000_000)
+        let elapsed = ProcessInfo.processInfo.systemUptime - refreshStartedAt
+        let delaySeconds = max(0.05, max(0.2, refreshInterval) - elapsed)
+        let delay = UInt64(delaySeconds * 1_000_000_000)
         try? await Task.sleep(nanoseconds: delay)
       }
     }
   }
 
   func stop() {
-    monitoringTask?.cancel()
-    monitoringTask = nil
+    metricsMonitoringTask?.cancel()
+    metricsMonitoringTask = nil
+    processMonitoringTask?.cancel()
+    processMonitoringTask = nil
     processResumeTask?.cancel()
     processResumeTask = nil
   }
 
-  func refresh(forceProcessSample: Bool = false) async {
-    guard !isRefreshing else { return }
+  func refreshMetrics() async {
+    guard !metricsRefreshing else { return }
+    metricsRefreshing = true
     isRefreshing = true
-    let now = ProcessInfo.processInfo.systemUptime
-    let minimumProcessInterval = max(1, refreshInterval)
-    let shouldSampleProcesses =
-      processSamplingEnabled
-      && (forceProcessSample || now - lastProcessSampleAt >= minimumProcessInterval)
-    if shouldSampleProcesses {
-      lastProcessSampleAt = now
-    }
-    let samplingGeneration = processSamplingGeneration
-    let nextSnapshot = await sampler.sample(includeProcesses: shouldSampleProcesses)
+    let nextSnapshot = await metricsSampler.sampleMetrics()
     metrics.update(from: nextSnapshot)
-    let shouldPublishProcesses =
-      shouldSampleProcesses
-      && processSamplingRequested
-      && samplingGeneration == processSamplingGeneration
-    if shouldPublishProcesses {
-      recordHistory(for: nextSnapshot)
-      processes = nextSnapshot.processes
+    metricsRefreshing = false
+    isRefreshing = metricsRefreshing || processesRefreshing
+  }
+
+  func refreshProcesses(generation: Int? = nil) async {
+    guard processSamplingRequested, !processesRefreshing else { return }
+    processesRefreshing = true
+    isRefreshing = true
+    let samplingGeneration = generation ?? processSamplingGeneration
+    let nextProcesses = await processSampler.sampleProcesses()
+    if processSamplingRequested, samplingGeneration == processSamplingGeneration {
+      var processSnapshot = metrics.snapshot
+      processSnapshot.processes = nextProcesses
+      recordHistory(for: processSnapshot)
+      processes = nextProcesses
     }
-    isRefreshing = false
+    processesRefreshing = false
+    isRefreshing = metricsRefreshing || processesRefreshing
   }
 
   func refreshNow(forceProcessSample: Bool = true) {
-    Task { await refresh(forceProcessSample: forceProcessSample) }
+    Task { await refreshMetrics() }
+    if forceProcessSample, processSamplingRequested {
+      let generation = processSamplingGeneration
+      Task { await refreshProcesses(generation: generation) }
+    }
   }
 
   func setProcessSamplingEnabled(_ isEnabled: Bool) {
@@ -88,13 +125,11 @@ final class SystemMonitor: ObservableObject {
     processSamplingGeneration += 1
     processResumeTask?.cancel()
     processResumeTask = nil
+    processMonitoringTask?.cancel()
+    processMonitoringTask = nil
 
-    guard isEnabled else {
-      processSamplingEnabled = false
-      return
-    }
+    guard isEnabled else { return }
 
-    processSamplingEnabled = false
     let generation = processSamplingGeneration
     processResumeTask = Task { [weak self] in
       try? await Task.sleep(nanoseconds: 250_000_000)
@@ -104,9 +139,27 @@ final class SystemMonitor: ObservableObject {
       else {
         return
       }
-      self.processSamplingEnabled = true
-      self.lastProcessSampleAt = -TimeInterval.infinity
-      await self.refresh(forceProcessSample: true)
+      self.startProcessMonitoring(generation: generation)
+    }
+  }
+
+  private func startProcessMonitoring(generation: Int) {
+    processMonitoringTask?.cancel()
+    processMonitoringTask = Task { [weak self] in
+      guard let self else { return }
+      while !Task.isCancelled,
+        self.processSamplingRequested,
+        self.processSamplingGeneration == generation
+      {
+        let refreshStartedAt = ProcessInfo.processInfo.systemUptime
+        if !self.isPaused {
+          await self.refreshProcesses(generation: generation)
+        }
+        let elapsed = ProcessInfo.processInfo.systemUptime - refreshStartedAt
+        let delaySeconds = max(0.05, max(1, self.refreshInterval) - elapsed)
+        let delay = UInt64(delaySeconds * 1_000_000_000)
+        try? await Task.sleep(nanoseconds: delay)
+      }
     }
   }
 

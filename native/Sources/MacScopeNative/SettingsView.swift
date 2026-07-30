@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct SettingsView: View {
   @EnvironmentObject private var settings: AppSettings
+  @Environment(\.openWindow) private var openWindow
 
   @AppStorage("native.settingsTab") private var selectedTab = "general"
   @State private var selectedScanFolder: String?
@@ -22,6 +23,9 @@ struct SettingsView: View {
         cleanupSettings
           .tabItem { Label("Cleanup", systemImage: "trash") }
           .tag("cleanup")
+        aboutSettings
+          .tabItem { Label("About", systemImage: "info.circle") }
+          .tag("about")
       }
       Divider()
       HStack {
@@ -198,6 +202,57 @@ struct SettingsView: View {
       Section("Permissions") {
         LabeledContent("Full Disk Access") {
           Button("Open System Settings", action: SystemPermission.openFullDiskAccessSettings)
+        }
+      }
+    }
+    .formStyle(.grouped)
+    .padding(8)
+  }
+
+  private var aboutSettings: some View {
+    Form {
+      Section {
+        HStack(spacing: 14) {
+          Image(nsImage: NSApp.applicationIconImage)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 64, height: 64)
+          VStack(alignment: .leading, spacing: 4) {
+            Text("MacScope")
+              .font(.title2.weight(.semibold))
+            Text("Version \(AppMetadata.version) (\(AppMetadata.build))")
+              .foregroundStyle(.secondary)
+              .monospacedDigit()
+          }
+        }
+        .padding(.vertical, 6)
+      }
+
+      Section("Project") {
+        LabeledContent("GitHub Author") {
+          Link("@shenmuoso", destination: AppLinks.author)
+        }
+        LabeledContent("Project Homepage") {
+          Link("great-mac-scope", destination: AppLinks.github)
+        }
+      }
+
+      Section("Help & Information") {
+        Button {
+          openWindow(id: "help")
+        } label: {
+          Label("MacScope Help", systemImage: "questionmark.circle")
+        }
+        Button(action: AppLinks.openGitHub) {
+          Label(
+            "View Project on GitHub",
+            systemImage: "chevron.left.forwardslash.chevron.right"
+          )
+        }
+        Button {
+          AboutPanel.show(language: settings.language)
+        } label: {
+          Label("About MacScope", systemImage: "info.circle")
         }
       }
     }

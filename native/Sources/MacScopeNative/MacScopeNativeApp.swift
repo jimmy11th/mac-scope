@@ -23,15 +23,14 @@ struct MacScopeNativeApp: App {
         }
         .onAppear {
           maintenance.updateLanguage(settings.language)
-          monitor.refreshInterval = settings.refreshInterval
+          monitor.updateRefreshInterval(settings.refreshInterval)
           monitor.start()
         }
         .onChange(of: settings.language) { language in
           maintenance.updateLanguage(language)
         }
         .onChange(of: settings.refreshInterval) { interval in
-          monitor.refreshInterval = interval
-          monitor.refreshNow()
+          monitor.updateRefreshInterval(interval)
         }
     }
     .defaultSize(width: 1_320, height: 800)

@@ -26,7 +26,7 @@ struct MainWindowConfigurationView: NSViewRepresentable {
       window.contentResizeIncrements = NSSize(width: 1, height: 1)
       window.collectionBehavior.insert(.fullScreenPrimary)
       window.isOpaque = false
-      window.backgroundColor = .windowBackgroundColor
+      window.backgroundColor = .clear
       window.titlebarAppearsTransparent = false
 
       if let zoomButton = window.standardWindowButton(.zoomButton) {

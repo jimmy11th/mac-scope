@@ -24,7 +24,7 @@ final class AdjustableSidebarMaterialView: NSView {
     super.init(frame: frameRect)
     effectView.material = .sidebar
     effectView.blendingMode = .behindWindow
-    effectView.state = .followsWindowActiveState
+    effectView.state = .active
     effectView.autoresizingMask = [.width, .height]
     tintView.wantsLayer = true
     tintView.autoresizingMask = [.width, .height]
@@ -46,7 +46,8 @@ final class AdjustableSidebarMaterialView: NSView {
   func update(isEnabled: Bool, transparency: Double) {
     effectView.isHidden = !isEnabled
     let normalizedTransparency = min(1, max(0, transparency))
-    let tintOpacity = isEnabled ? 1 - normalizedTransparency : 1
+    effectView.alphaValue = isEnabled ? 1 - (normalizedTransparency * 0.45) : 0
+    let tintOpacity = isEnabled ? pow(1 - normalizedTransparency, 1.35) : 1
     tintView.layer?.backgroundColor = NSColor.windowBackgroundColor
       .withAlphaComponent(tintOpacity).cgColor
   }

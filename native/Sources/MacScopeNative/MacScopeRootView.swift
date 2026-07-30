@@ -39,7 +39,6 @@ struct MacScopeRootView: View {
 
   let monitor: SystemMonitor
   @EnvironmentObject private var settings: AppSettings
-  @Environment(\.openWindow) private var openWindow
   @State private var destination: SidebarDestination
 
   init(monitor: SystemMonitor) {
@@ -73,20 +72,26 @@ struct MacScopeRootView: View {
 
   var body: some View {
     NavigationSplitView {
-      List(selection: destinationSelection) {
-        Section("Monitor") {
-          sidebarRow(.overview)
+      VStack(spacing: 0) {
+        List(selection: destinationSelection) {
+          Section("Monitor") {
+            sidebarRow(.overview)
+          }
+          Section("System Tools") {
+            sidebarRow(.junk)
+            sidebarRow(.applications)
+            sidebarRow(.largeFiles)
+            sidebarRow(.duplicates)
+            sidebarRow(.memory)
+          }
         }
-        Section("System Tools") {
-          sidebarRow(.junk)
-          sidebarRow(.applications)
-          sidebarRow(.largeFiles)
-          sidebarRow(.duplicates)
-          sidebarRow(.memory)
-        }
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .compactNativeScrollers(clearsBackground: true)
+
+        Divider()
+        sidebarFooter
       }
-      .listStyle(.sidebar)
-      .scrollContentBackground(.hidden)
       .background {
         SidebarMaterialView(
           isEnabled: settings.sidebarTransparencyEnabled,
@@ -95,7 +100,6 @@ struct MacScopeRootView: View {
           .ignoresSafeArea()
           .allowsHitTesting(false)
       }
-      .compactNativeScrollers(clearsBackground: true)
       .navigationSplitViewColumnWidth(min: 180, ideal: 210, max: 260)
     } detail: {
       detailContent
@@ -105,34 +109,6 @@ struct MacScopeRootView: View {
     }
     .navigationSplitViewStyle(.balanced)
     .toolbar {
-      ToolbarItem(placement: .primaryAction) {
-        Menu {
-          Button {
-            openWindow(id: "help")
-          } label: {
-            Label("MacScope Help", systemImage: "questionmark.circle")
-          }
-
-          Button(action: AppLinks.openGitHub) {
-            Label(
-              "View Project on GitHub",
-              systemImage: "chevron.left.forwardslash.chevron.right"
-            )
-          }
-
-          Divider()
-
-          Button {
-            AboutPanel.show(language: settings.language)
-          } label: {
-            Label("About MacScope", systemImage: "info.circle")
-          }
-        } label: {
-          Label("Help & Information", systemImage: "questionmark.circle")
-        }
-        .help("Help & Information")
-      }
-
       ToolbarItem(placement: .primaryAction) {
         if #available(macOS 14.0, *) {
           SettingsLink {
@@ -156,6 +132,26 @@ struct MacScopeRootView: View {
     Label(item.title, systemImage: item.systemImage)
       .tag(item)
       .listRowBackground(Color.clear)
+  }
+
+  private var sidebarFooter: some View {
+    VStack(alignment: .leading, spacing: 7) {
+      Link(destination: AppLinks.author) {
+        Label("@shenmuoso", systemImage: "person.crop.circle")
+      }
+      Link(destination: AppLinks.github) {
+        Label("Project Homepage", systemImage: "arrow.up.right.square")
+      }
+      Text("Version \(AppMetadata.version)")
+        .foregroundStyle(.tertiary)
+        .monospacedDigit()
+    }
+    .font(.caption)
+    .buttonStyle(.plain)
+    .foregroundStyle(.secondary)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(.horizontal, 14)
+    .padding(.vertical, 12)
   }
 
   @ViewBuilder

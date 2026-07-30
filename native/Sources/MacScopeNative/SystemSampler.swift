@@ -43,7 +43,7 @@ actor SystemSampler {
   private var temperature = TemperatureUsage.unavailable
   private var temperatureUpdatedAt = -TimeInterval.infinity
 
-  func sample(includeProcesses: Bool) -> SystemSnapshot {
+  func sampleMetrics() -> SystemSnapshot {
     let now = ProcessInfo.processInfo.systemUptime
     let elapsed = max(0.001, now - previousTime)
     if now - temperatureUpdatedAt >= 2 {
@@ -91,27 +91,26 @@ actor SystemSampler {
     previousNetwork = networkCounters
     previousTime = now
 
-    let processes: [ProcessRow]
-    if includeProcesses {
-      let processElapsed = max(0.001, now - previousProcessTime)
-      let processNetworkCounters = readProcessNetworkCounters()
-      processes = readProcesses(
-        elapsed: processElapsed,
-        networkCounters: processNetworkCounters
-      )
-      previousProcessTime = now
-    } else {
-      processes = []
-    }
-
     return SystemSnapshot(
       timestamp: .now,
       cpu: cpu,
       memory: memory,
       disk: disk,
       network: network,
-      processes: processes
+      processes: []
     )
+  }
+
+  func sampleProcesses() -> [ProcessRow] {
+    let now = ProcessInfo.processInfo.systemUptime
+    let processElapsed = max(0.001, now - previousProcessTime)
+    let processNetworkCounters = readProcessNetworkCounters()
+    let processes = readProcesses(
+      elapsed: processElapsed,
+      networkCounters: processNetworkCounters
+    )
+    previousProcessTime = now
+    return processes
   }
 
   private func readCPUTicks() -> CPUTicks {

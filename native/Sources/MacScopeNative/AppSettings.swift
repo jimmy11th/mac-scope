@@ -40,6 +40,7 @@ final class AppSettings: ObservableObject {
     static let sidebarTransparency = "native.sidebarTransparency"
     static let refreshInterval = "native.refreshInterval"
     static let processLimit = "native.processLimit"
+    static let processLimitDefault20Applied = "native.processLimitDefault20Applied"
     static let temperatureUnit = "native.temperatureUnit"
     static let themeID = "native.themeID"
     static let customTheme = "native.customTheme"
@@ -138,7 +139,13 @@ final class AppSettings: ObservableObject {
     let savedInterval = defaults.double(forKey: Key.refreshInterval)
     refreshInterval = [0.5, 1, 2, 5].contains(savedInterval) ? savedInterval : 1
     let savedLimit = defaults.integer(forKey: Key.processLimit)
-    processLimit = [5, 10, 20, 50].contains(savedLimit) ? savedLimit : 5
+    if !defaults.bool(forKey: Key.processLimitDefault20Applied), savedLimit == 5 {
+      processLimit = 20
+      defaults.set(20, forKey: Key.processLimit)
+    } else {
+      processLimit = [5, 10, 20, 50].contains(savedLimit) ? savedLimit : 20
+    }
+    defaults.set(true, forKey: Key.processLimitDefault20Applied)
     temperatureUnit =
       TemperatureUnit(rawValue: defaults.string(forKey: Key.temperatureUnit) ?? "") ?? .celsius
 
@@ -191,7 +198,7 @@ final class AppSettings: ObservableObject {
     sidebarTransparencyEnabled = true
     sidebarTransparency = 0.7
     refreshInterval = 1
-    processLimit = 5
+    processLimit = 20
     temperatureUnit = .celsius
     resetTheme()
     cacheCleanupMode = .trash

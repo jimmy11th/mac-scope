@@ -8,7 +8,7 @@ process table and guarded macOS maintenance tools.
 
 - Live CPU and SoC temperature, memory pressure, data-volume capacity, disk I/O,
   and network throughput
-- One unified Top 5 process table with sortable CPU, memory, disk, network, PID,
+- One unified Top 20 process table with sortable CPU, memory, disk, network, PID,
   thread-count, and runtime columns
 - Per-process resource details, 60-second trends, files, and network connections
 - Search and dashboard filters (`user:NAME` and `pid:NUMBER` are supported)
@@ -23,7 +23,7 @@ process table and guarded macOS maintenance tools.
   translucent sidebar that samples content behind the MacScope window
 - Native Help and About interfaces with direct access to the GitHub project
 - Responsive process/tools workspace with compact tabs
-- Runtime-adjustable Top process count, defaulting to five rows
+- Runtime-adjustable Top process count, defaulting to 20 rows
 - Persistent language, refresh, row count, temperature, smoothing, interface, and
   process-list preferences, plus cache cleanup behavior and large-file threshold
 - Six built-in themes, live color editing, and portable JSON theme import/export
@@ -85,7 +85,7 @@ Build a compressed development DMG with:
 native/scripts/build_dmg.sh
 ```
 
-The default image is written to `native/build/MacScope-0.4.3-sidebar-performance.dmg`. The
+The default image is written to `native/build/MacScope-0.4.4-translucent-sidebar.dmg`. The
 app is ad-hoc signed and not notarized, so it is intended for local development rather
 than public distribution.
 

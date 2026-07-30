@@ -11,6 +11,7 @@
 "General" = "通用";
 "Appearance" = "外观";
 "Cleanup" = "清理";
+"About" = "关于";
 "Reset All Settings" = "还原所有设置";
 "Reset all settings?" = "还原所有设置？";
 "Reset" = "还原";
@@ -210,6 +211,10 @@
 "Version %@" = "版本 %@";
 "Uninstall %@" = "卸载 %@";
 "About MacScope" = "关于 MacScope";
+"Project" = "项目";
+"GitHub Author" = "GitHub 作者";
+"Project Homepage" = "项目主页";
+"Version %@ (%@)" = "版本 %@（构建 %@）";
 "MacScope is an open source macOS system utility." = "MacScope 是一款开源的 macOS 系统工具。";
 "MacScope Help" = "MacScope 帮助";
 "View Project on GitHub" = "在 GitHub 上查看项目";
