@@ -115,7 +115,7 @@ struct DashboardView: View {
         }
         .help(monitor.isPaused ? "Resume Monitoring" : "Pause Monitoring")
 
-        Button(action: monitor.refreshNow) {
+        Button(action: { monitor.refreshNow() }) {
           Label("Refresh", systemImage: "arrow.clockwise")
         }
         .help("Refresh Now")
@@ -309,6 +309,7 @@ struct DashboardView: View {
         }
       }
     }
+    .compactNativeScrollers()
   }
 
   private var statusBar: some View {

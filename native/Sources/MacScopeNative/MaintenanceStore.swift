@@ -18,6 +18,7 @@ final class MaintenanceStore: ObservableObject {
   private var operationTask: Task<Void, Never>?
   private var lastOperation: LastOperation?
   private var language = AppLanguage.english
+  private var lastScanProgressUpdate = -TimeInterval.infinity
 
   var isBusy: Bool {
     guard let phase = activity?.phase else { return false }
@@ -257,6 +258,7 @@ final class MaintenanceStore: ObservableObject {
   ) {
     cancelCurrentOperation()
     lastOperation = nil
+    lastScanProgressUpdate = -TimeInterval.infinity
     activity = MaintenanceActivity(
       id: UUID(),
       tool: tool,
@@ -270,7 +272,7 @@ final class MaintenanceStore: ObservableObject {
       reclaimedBytes: 0,
       failures: []
     )
-    operationTask = Task { [weak self] in
+    operationTask = Task(priority: .utility) { [weak self] in
       guard let self else { return }
       do {
         let result = try await operation { [weak self] progress in
@@ -318,8 +320,13 @@ final class MaintenanceStore: ObservableObject {
 
   private func updateScanProgress(_ progress: ScanProgress) {
     guard activity?.phase == .scanning else { return }
-    activity?.completed = progress.scannedCount
-    activity?.currentPath = progress.currentPath
+    let now = ProcessInfo.processInfo.systemUptime
+    guard now - lastScanProgressUpdate >= 0.1 else { return }
+    lastScanProgressUpdate = now
+    guard var nextActivity = activity else { return }
+    nextActivity.completed = progress.scannedCount
+    nextActivity.currentPath = progress.currentPath
+    activity = nextActivity
   }
 
   private func beginCleanup(

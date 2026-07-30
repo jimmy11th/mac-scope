@@ -164,7 +164,7 @@ struct FileCleanupView: View {
 
       TableColumn("Name") { item in
         HStack(spacing: 8) {
-          Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path))
+          Image(nsImage: WorkspaceIconCache.icon(for: item.url))
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(width: 18, height: 18)
@@ -194,6 +194,7 @@ struct FileCleanupView: View {
       }
       .width(min: 220, ideal: 380)
     }
+    .compactNativeScrollers()
   }
 
   private var largeFileTable: some View {
@@ -206,7 +207,7 @@ struct FileCleanupView: View {
 
       TableColumn("Name") { item in
         HStack(spacing: 8) {
-          Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path))
+          Image(nsImage: WorkspaceIconCache.icon(for: item.url))
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(width: 18, height: 18)
@@ -236,6 +237,7 @@ struct FileCleanupView: View {
       }
       .width(min: 260, ideal: 440)
     }
+    .compactNativeScrollers()
   }
 
   private var totalSize: UInt64 {

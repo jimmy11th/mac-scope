@@ -8,7 +8,7 @@ struct MacScopeNativeApp: App {
 
   var body: some Scene {
     WindowGroup("MacScope") {
-      MacScopeRootView()
+      MacScopeRootView(monitor: monitor)
         .environmentObject(monitor)
         .environmentObject(settings)
         .environmentObject(maintenance)
@@ -35,6 +35,9 @@ struct MacScopeNativeApp: App {
     }
     .defaultSize(width: 1_320, height: 800)
     .windowStyle(.titleBar)
+    .commands {
+      MacScopeCommands(language: settings.language)
+    }
 
     Settings {
       SettingsView()
@@ -44,5 +47,16 @@ struct MacScopeNativeApp: App {
         .tint(settings.activeTheme.accentColor)
         .frame(width: 660, height: 520)
     }
+
+    Window("MacScope Help", id: "help") {
+      HelpView()
+        .environmentObject(settings)
+        .environment(\.locale, settings.language.locale)
+        .preferredColorScheme(settings.appearance.colorScheme)
+        .tint(settings.activeTheme.accentColor)
+        .frame(minWidth: 680, minHeight: 480)
+    }
+    .defaultSize(width: 780, height: 560)
+    .windowStyle(.titleBar)
   }
 }

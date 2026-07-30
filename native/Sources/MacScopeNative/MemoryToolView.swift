@@ -46,6 +46,7 @@ struct MemoryToolView: View {
         .padding(.horizontal, 28)
         .padding(.vertical, 34)
       }
+      .compactNativeScrollers()
     }
     .navigationTitle(AppLocalization.string("Memory", language: settings.language))
   }

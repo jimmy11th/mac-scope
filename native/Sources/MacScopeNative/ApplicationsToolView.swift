@@ -95,7 +95,7 @@ struct ApplicationsToolView: View {
     Table(filteredApplications, selection: $selection) {
       TableColumn("Application") { record in
         HStack(spacing: 9) {
-          Image(nsImage: ApplicationIconCache.icon(for: record.application.url))
+          Image(nsImage: WorkspaceIconCache.icon(for: record.application.url))
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(width: 28, height: 28)
@@ -161,6 +161,7 @@ struct ApplicationsToolView: View {
       .width(min: 160, ideal: 260)
     }
     .onTapGesture(count: 2, perform: beginUninstall)
+    .compactNativeScrollers()
   }
 
   private var applicationSummary: String {
@@ -220,7 +221,7 @@ private struct ApplicationUninstallView: View {
   var body: some View {
     VStack(spacing: 0) {
       HStack(spacing: 14) {
-        Image(nsImage: ApplicationIconCache.icon(for: currentRecord.application.url))
+        Image(nsImage: WorkspaceIconCache.icon(for: currentRecord.application.url))
           .resizable()
           .aspectRatio(contentMode: .fit)
           .frame(width: 54, height: 54)
@@ -370,18 +371,5 @@ private struct ApplicationUninstallView: View {
         if selected { selectedIDs.insert(item.id) } else { selectedIDs.remove(item.id) }
       }
     )
-  }
-}
-
-@MainActor
-private enum ApplicationIconCache {
-  private static let cache = NSCache<NSString, NSImage>()
-
-  static func icon(for url: URL) -> NSImage {
-    let key = url.path as NSString
-    if let icon = cache.object(forKey: key) { return icon }
-    let icon = NSWorkspace.shared.icon(forFile: url.path)
-    cache.setObject(icon, forKey: key)
-    return icon
   }
 }

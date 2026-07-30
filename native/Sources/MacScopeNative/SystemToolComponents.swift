@@ -1,4 +1,18 @@
+import AppKit
 import SwiftUI
+
+@MainActor
+enum WorkspaceIconCache {
+  private static let cache = NSCache<NSString, NSImage>()
+
+  static func icon(for url: URL) -> NSImage {
+    let key = url.standardizedFileURL.path as NSString
+    if let cached = cache.object(forKey: key) { return cached }
+    let icon = NSWorkspace.shared.icon(forFile: url.path)
+    cache.setObject(icon, forKey: key)
+    return icon
+  }
+}
 
 struct SystemToolHeader<Actions: View>: View {
   let title: LocalizedStringKey
@@ -108,4 +122,3 @@ struct SystemToolStatusBar<Actions: View>: View {
     .background(Color(nsColor: .controlBackgroundColor))
   }
 }
-

@@ -35,6 +35,8 @@ private enum SidebarDestination: String, CaseIterable, Identifiable {
 }
 
 struct MacScopeRootView: View {
+  let monitor: SystemMonitor
+
   @AppStorage("native.sidebarDestination") private var destinationRaw =
     SidebarDestination.overview.rawValue
 
@@ -45,7 +47,11 @@ struct MacScopeRootView: View {
   private var destinationSelection: Binding<SidebarDestination?> {
     Binding(
       get: { destination },
-      set: { destinationRaw = ($0 ?? .overview).rawValue }
+      set: {
+        let nextDestination = $0 ?? .overview
+        destinationRaw = nextDestination.rawValue
+        monitor.setProcessSamplingEnabled(nextDestination == .overview)
+      }
     )
   }
 
@@ -64,23 +70,21 @@ struct MacScopeRootView: View {
         }
       }
       .listStyle(.sidebar)
+      .scrollContentBackground(.hidden)
+      .background {
+        SidebarMaterialView()
+          .ignoresSafeArea()
+          .allowsHitTesting(false)
+      }
+      .compactNativeScrollers()
       .navigationSplitViewColumnWidth(min: 180, ideal: 210, max: 260)
     } detail: {
-      switch destination {
-      case .overview:
-        DashboardView()
-      case .junk:
-        JunkCleanupView()
-      case .applications:
-        ApplicationsToolView()
-      case .largeFiles:
-        FileCleanupView(tool: .largeFiles)
-      case .duplicates:
-        FileCleanupView(tool: .duplicates)
-      case .memory:
-        MemoryToolView()
-      }
+      detailContent
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .clipped()
     }
+    .navigationSplitViewStyle(.balanced)
     .toolbar {
       ToolbarItem(placement: .primaryAction) {
         if #available(macOS 14.0, *) {
@@ -96,11 +100,32 @@ struct MacScopeRootView: View {
         }
       }
     }
+    .onAppear {
+      monitor.setProcessSamplingEnabled(destination == .overview)
+    }
   }
 
   private func sidebarRow(_ item: SidebarDestination) -> some View {
     Label(item.title, systemImage: item.systemImage)
       .tag(item)
+  }
+
+  @ViewBuilder
+  private var detailContent: some View {
+    switch destination {
+    case .overview:
+      DashboardView()
+    case .junk:
+      JunkCleanupView()
+    case .applications:
+      ApplicationsToolView()
+    case .largeFiles:
+      FileCleanupView(tool: .largeFiles)
+    case .duplicates:
+      FileCleanupView(tool: .duplicates)
+    case .memory:
+      MemoryToolView()
+    }
   }
 
   private func openSettings() {

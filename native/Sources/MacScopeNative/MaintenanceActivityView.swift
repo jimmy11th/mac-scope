@@ -60,9 +60,6 @@ struct MaintenanceActivityInlineView: View {
           if store.isBusy {
             if let progress = activity.progress {
               ProgressView(value: progress)
-            } else {
-              ProgressView()
-                .controlSize(.small)
             }
           }
 
@@ -108,6 +105,7 @@ struct MaintenanceActivityInlineView: View {
             }
           }
           .frame(maxHeight: min(190, CGFloat(activity.entries.count) * 48))
+          .compactNativeScrollers()
         }
 
         if activity.reclaimedBytes > 0 {

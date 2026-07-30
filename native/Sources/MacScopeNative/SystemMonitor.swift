@@ -14,6 +14,8 @@ final class SystemMonitor: ObservableObject {
   private let sampler = SystemSampler()
   private var monitoringTask: Task<Void, Never>?
   private var trackedPID: Int32?
+  private var processSamplingEnabled = true
+  private var lastProcessSampleAt = -TimeInterval.infinity
 
   func start() {
     guard monitoringTask == nil else { return }
@@ -21,7 +23,7 @@ final class SystemMonitor: ObservableObject {
       guard let self else { return }
       while !Task.isCancelled {
         if !isPaused {
-          await refresh()
+          await refresh(forceProcessSample: false)
         }
         let delay = UInt64(max(0.2, refreshInterval) * 1_000_000_000)
         try? await Task.sleep(nanoseconds: delay)
@@ -34,17 +36,38 @@ final class SystemMonitor: ObservableObject {
     monitoringTask = nil
   }
 
-  func refresh() async {
+  func refresh(forceProcessSample: Bool = false) async {
     guard !isRefreshing else { return }
     isRefreshing = true
-    let nextSnapshot = await sampler.sample()
-    recordHistory(for: nextSnapshot)
+    let now = ProcessInfo.processInfo.systemUptime
+    let minimumProcessInterval = max(1, refreshInterval)
+    let shouldSampleProcesses =
+      processSamplingEnabled
+      && (forceProcessSample || now - lastProcessSampleAt >= minimumProcessInterval)
+    if shouldSampleProcesses {
+      lastProcessSampleAt = now
+    }
+    var nextSnapshot = await sampler.sample(includeProcesses: shouldSampleProcesses)
+    if shouldSampleProcesses {
+      recordHistory(for: nextSnapshot)
+    } else {
+      nextSnapshot.processes = snapshot.processes
+    }
     isRefreshing = false
     snapshot = nextSnapshot
   }
 
-  func refreshNow() {
-    Task { await refresh() }
+  func refreshNow(forceProcessSample: Bool = true) {
+    Task { await refresh(forceProcessSample: forceProcessSample) }
+  }
+
+  func setProcessSamplingEnabled(_ isEnabled: Bool) {
+    guard processSamplingEnabled != isEnabled else { return }
+    processSamplingEnabled = isEnabled
+    if isEnabled {
+      lastProcessSampleAt = -TimeInterval.infinity
+      refreshNow(forceProcessSample: true)
+    }
   }
 
   func togglePause() {

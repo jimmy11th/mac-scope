@@ -41,7 +41,7 @@ actor MaintenanceService {
         for child in children {
           try Task.checkCancellation()
           do {
-            let (size, count) = try pathSize(child)
+            let (size, count) = try await pathSize(child)
             let identity = try fileIdentity(child)
             scanned += count
             items.append(
@@ -53,10 +53,14 @@ actor MaintenanceService {
                 identity: identity
               ))
             await progress(ScanProgress(scannedCount: scanned, currentPath: child.path))
+          } catch is CancellationError {
+            throw CancellationError()
           } catch {
             errors.append("\(child.path): \(error.localizedDescription)")
           }
         }
+      } catch is CancellationError {
+        throw CancellationError()
       } catch {
         errors.append("\(root.path): \(error.localizedDescription)")
       }
@@ -100,7 +104,7 @@ actor MaintenanceService {
             if child.pathExtension.lowercased() == "app" {
               guard child.standardizedFileURL.path != currentApplicationPath else { continue }
               do {
-                let (size, count) = try pathSize(child)
+                let (size, count) = try await pathSize(child)
                 let identity = try fileIdentity(child)
                 let metadata = applicationMetadata(child)
                 scanned += count
@@ -119,6 +123,8 @@ actor MaintenanceService {
                     metadata.version
                   ))
                 await progress(ScanProgress(scannedCount: scanned, currentPath: child.path))
+              } catch is CancellationError {
+                throw CancellationError()
               } catch {
                 errors.append("\(child.path): \(error.localizedDescription)")
               }
@@ -126,6 +132,8 @@ actor MaintenanceService {
               stack.append((child, depth + 1))
             }
           }
+        } catch is CancellationError {
+          throw CancellationError()
         } catch {
           errors.append("\(directory.path): \(error.localizedDescription)")
         }
@@ -146,7 +154,7 @@ actor MaintenanceService {
         return lhs.item.url.path.localizedStandardCompare(rhs.item.url.path) == .orderedAscending
       }
       guard let application = orderedCopies.first else { continue }
-      let residues = try residueItems(
+      let residues = try await residueItems(
         bundleID: application.bundleID,
         parentID: application.item.id
       )
@@ -269,9 +277,11 @@ actor MaintenanceService {
       for candidate in candidates {
         try Task.checkCancellation()
         do {
-          let digest = try hashFile(candidate)
+          let digest = try await hashFile(candidate)
           byHash[digest, default: []].append(candidate)
           await progress(ScanProgress(scannedCount: scanned, currentPath: candidate.path))
+        } catch is CancellationError {
+          throw CancellationError()
         } catch {
           errors.append("\(candidate.path): \(error.localizedDescription)")
         }
@@ -415,7 +425,9 @@ actor MaintenanceService {
     return .authorizationRequired(message)
   }
 
-  private func residueItems(bundleID: String, parentID: String) throws -> [MaintenanceItem] {
+  private func residueItems(bundleID: String, parentID: String) async throws
+    -> [MaintenanceItem]
+  {
     guard !bundleID.isEmpty else { return [] }
     let library = home.appendingPathComponent("Library", isDirectory: true)
     let candidates: [(URL, String)] = [
@@ -430,20 +442,24 @@ actor MaintenanceService {
       (library.appendingPathComponent("HTTPStorages/\(bundleID)"), "Web Data"),
       (library.appendingPathComponent("WebKit/\(bundleID)"), "Web Data"),
     ]
-    return try candidates.compactMap { url, category in
-      guard fileManager.fileExists(atPath: url.path) else { return nil }
-      let (size, _) = try pathSize(url)
+    var items: [MaintenanceItem] = []
+    for (url, category) in candidates {
+      guard fileManager.fileExists(atPath: url.path) else { continue }
+      let (size, _) = try await pathSize(url)
       let identity = try fileIdentity(url)
-      return makeItem(
-        kind: .residue,
-        category: category,
-        url: url,
-        size: size,
-        identity: identity,
-        group: bundleID,
-        parentID: parentID
+      items.append(
+        makeItem(
+          kind: .residue,
+          category: category,
+          url: url,
+          size: size,
+          identity: identity,
+          group: bundleID,
+          parentID: parentID
+        )
       )
     }
+    return items
   }
 
   private func applicationMetadata(_ url: URL) -> (bundleID: String, name: String, version: String)
@@ -482,7 +498,7 @@ actor MaintenanceService {
     )
   }
 
-  private func pathSize(_ url: URL) throws -> (UInt64, Int) {
+  private func pathSize(_ url: URL) async throws -> (UInt64, Int) {
     let values = try url.resourceValues(forKeys: [
       .isDirectoryKey, .isSymbolicLinkKey, .fileSizeKey,
     ])
@@ -497,8 +513,13 @@ actor MaintenanceService {
         .fileAllocatedSizeKey, .fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey,
       ]
     )
+    var visited = 0
     while let child = enumerator?.nextObject() as? URL {
-      if Task.isCancelled { break }
+      visited += 1
+      if visited.isMultiple(of: 256) {
+        try Task.checkCancellation()
+        await Task.yield()
+      }
       guard let childValues = try? child.resourceValues(forKeys: [
           .fileAllocatedSizeKey, .fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey,
         ]) else { continue }
@@ -523,14 +544,16 @@ actor MaintenanceService {
     )
   }
 
-  private func hashFile(_ url: URL) throws -> String {
+  private func hashFile(_ url: URL) async throws -> String {
     let handle = try FileHandle(forReadingFrom: url)
     defer { try? handle.close() }
     var hasher = SHA256()
-    while !Task.isCancelled {
+    while true {
+      try Task.checkCancellation()
       let data = try handle.read(upToCount: 1_048_576) ?? Data()
       if data.isEmpty { break }
       hasher.update(data: data)
+      await Task.yield()
     }
     return hasher.finalize().map { String(format: "%02x", $0) }.joined()
   }

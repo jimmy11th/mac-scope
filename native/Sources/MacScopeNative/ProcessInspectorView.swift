@@ -22,6 +22,7 @@ struct ProcessInspectorView: View {
         }
         .padding(16)
       }
+      .compactNativeScrollers()
     }
   }
 

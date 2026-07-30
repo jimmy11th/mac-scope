@@ -139,6 +139,7 @@ struct JunkCleanupView: View {
       }
       .width(min: 180, ideal: 300)
     }
+    .compactNativeScrollers()
   }
 
   private var totalSize: UInt64 {
