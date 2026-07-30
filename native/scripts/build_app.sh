@@ -18,6 +18,7 @@ BIN_DIR=$(swift build --package-path "$NATIVE_ROOT" --configuration "$CONFIGURAT
 /bin/mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 /usr/bin/ditto "$BIN_DIR/MacScopeShell" "$MACOS_DIR/MacScopeShell"
 /usr/bin/ditto "$NATIVE_ROOT/Resources/Info.plist" "$CONTENTS_DIR/Info.plist"
+/usr/bin/ditto "$NATIVE_ROOT/Resources/MacScope.icns" "$RESOURCES_DIR/MacScope.icns"
 
 for resource_bundle in "$BIN_DIR"/*.bundle(N); do
     /usr/bin/ditto "$resource_bundle" "$RESOURCES_DIR/${resource_bundle:t}"

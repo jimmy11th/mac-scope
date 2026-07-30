@@ -78,6 +78,17 @@ The generated ad-hoc-signed application is written to
 `native/build/MacScope.app`. Set `MACSCOPE_UV_PATH` before building when `uv` is not on
 the current `PATH`. The shell never opens Terminal.app.
 
+Build a compressed development DMG with:
+
+```bash
+native/scripts/build_dmg.sh
+```
+
+The default image is written to `native/build/MacScope-0.1.0-dev.dmg`. This phase-one
+package is ad-hoc signed and not notarized. It still launches MacScope from this repository
+through the locally installed `uv`, so it is intended for development on this Mac rather
+than distribution to other users.
+
 ## Keyboard
 
 | Key | Action |
