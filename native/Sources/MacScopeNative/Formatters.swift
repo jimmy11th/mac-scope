@@ -14,6 +14,16 @@ enum DisplayFormat {
     String(format: "%.1f%%", max(0, value))
   }
 
+  static func temperature(_ celsius: Double?, unit: TemperatureUnit) -> String? {
+    guard let celsius, celsius.isFinite else { return nil }
+    switch unit {
+    case .celsius:
+      return String(format: "%.0f°C", celsius)
+    case .fahrenheit:
+      return String(format: "%.0f°F", celsius * 9 / 5 + 32)
+    }
+  }
+
   static func duration(_ value: TimeInterval) -> String {
     let seconds = max(0, Int(value))
     let days = seconds / 86_400
@@ -26,5 +36,17 @@ enum DisplayFormat {
       return "\(hours)h \(minutes)m"
     }
     return "\(minutes)m"
+  }
+
+  static func processState(_ value: String) -> String {
+    switch value.first {
+    case "R": "Running"
+    case "S": "Sleeping"
+    case "I": "Idle"
+    case "T": "Stopped"
+    case "Z": "Zombie"
+    case "U": "Waiting"
+    default: "Unknown"
+    }
   }
 }

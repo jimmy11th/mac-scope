@@ -18,6 +18,10 @@ struct SettingsView: View {
           Text("20").tag(20)
           Text("50").tag(50)
         }
+        Picker("Temperature", selection: $settings.temperatureUnit) {
+          Text("Celsius").tag(TemperatureUnit.celsius)
+          Text("Fahrenheit").tag(TemperatureUnit.fahrenheit)
+        }
       }
 
     }

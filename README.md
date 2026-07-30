@@ -58,10 +58,11 @@ macscope
 ## Native macOS preview
 
 The native preview is a standalone SwiftUI/AppKit application with no terminal, Python,
-Textual, or `uv` runtime dependency. Its first milestone provides live CPU, memory, disk,
-and network status, a searchable and sortable native process table, guarded quit actions,
-and persistent refresh and row-count settings. Maintenance workflows are being migrated
-to native views in later milestones.
+Textual, or `uv` runtime dependency. It provides live CPU and SoC temperature, memory,
+disk, and network status; per-process disk and network activity; a searchable and sortable
+native process table; a 60-second process inspector; guarded quit actions; and persistent
+monitoring settings. Maintenance workflows are being migrated to native views in later
+milestones.
 
 Build and open the application with:
 
@@ -78,7 +79,7 @@ Build a compressed development DMG with:
 native/scripts/build_dmg.sh
 ```
 
-The default image is written to `native/build/MacScope-0.2.0-native-preview.dmg`. The
+The default image is written to `native/build/MacScope-0.3.0-native-monitor.dmg`. The
 preview is ad-hoc signed and not notarized, so it is intended for local development rather
 than public distribution.
 

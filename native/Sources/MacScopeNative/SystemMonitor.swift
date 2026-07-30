@@ -5,13 +5,15 @@ import Foundation
 @MainActor
 final class SystemMonitor: ObservableObject {
   @Published private(set) var snapshot = SystemSnapshot.empty
-  @Published private(set) var isRefreshing = false
+  private(set) var processHistory: [ProcessHistoryPoint] = []
+  private(set) var isRefreshing = false
   @Published var isPaused = false
 
   var refreshInterval: Double = 1
 
   private let sampler = SystemSampler()
   private var monitoringTask: Task<Void, Never>?
+  private var trackedPID: Int32?
 
   func start() {
     guard monitoringTask == nil else { return }
@@ -35,8 +37,10 @@ final class SystemMonitor: ObservableObject {
   func refresh() async {
     guard !isRefreshing else { return }
     isRefreshing = true
-    snapshot = await sampler.sample()
+    let nextSnapshot = await sampler.sample()
+    recordHistory(for: nextSnapshot)
     isRefreshing = false
+    snapshot = nextSnapshot
   }
 
   func refreshNow() {
@@ -59,5 +63,38 @@ final class SystemMonitor: ObservableObject {
       return nil
     }
     return String(cString: strerror(errno))
+  }
+
+  func history(for pid: Int32) -> [ProcessHistoryPoint] {
+    trackedPID == pid ? processHistory : []
+  }
+
+  func trackProcess(_ pid: Int32?) {
+    guard trackedPID != pid else { return }
+    trackedPID = pid
+    processHistory = []
+  }
+
+  private func recordHistory(for nextSnapshot: SystemSnapshot) {
+    guard let trackedPID else {
+      if !processHistory.isEmpty {
+        processHistory = []
+      }
+      return
+    }
+    let cutoff = nextSnapshot.timestamp.addingTimeInterval(-60)
+    guard let process = nextSnapshot.processes.first(where: { $0.pid == trackedPID }) else {
+      processHistory = []
+      return
+    }
+    processHistory.removeAll { $0.timestamp < cutoff }
+    processHistory.append(
+      ProcessHistoryPoint(
+        timestamp: nextSnapshot.timestamp,
+        cpuPercent: process.cpuPercent,
+        memoryBytes: process.memoryBytes,
+        diskRate: process.diskReadRate + process.diskWriteRate,
+        networkRate: process.networkDownloadRate + process.networkUploadRate
+      ))
   }
 }

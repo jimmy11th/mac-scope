@@ -26,7 +26,7 @@ struct MacScopeNativeApp: App {
     Settings {
       SettingsView()
         .environmentObject(settings)
-        .frame(width: 430, height: 190)
+        .frame(width: 430, height: 230)
     }
   }
 }

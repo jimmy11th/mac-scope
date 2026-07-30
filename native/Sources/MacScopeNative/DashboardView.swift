@@ -46,15 +46,16 @@ struct DashboardView: View {
   @EnvironmentObject private var settings: AppSettings
 
   @State private var searchText = ""
-  @State private var selection = Set<ProcessRow.ID>()
+  @State private var selection: ProcessRow.ID?
   @State private var sortOrder = [
     KeyPathComparator(\ProcessRow.cpuPercent, order: .reverse)
   ]
   @State private var pendingCommand: ProcessCommand?
   @State private var operationError: String?
+  @State private var showsInspector = false
 
   private var selectedProcess: ProcessRow? {
-    guard let pid = selection.first else { return nil }
+    guard let pid = selection else { return nil }
     return monitor.snapshot.processes.first { $0.pid == pid }
   }
 
@@ -65,17 +66,39 @@ struct DashboardView: View {
         || process.name.lowercased().contains(query)
         || String(process.pid).contains(query)
     }
-    return Array(filtered.sorted(using: sortOrder).prefix(settings.processLimit))
+    let sorted = filtered.sorted(using: sortOrder)
+    var visible = Array(sorted.prefix(settings.processLimit))
+    if query.isEmpty, let selection,
+      !visible.contains(where: { $0.pid == selection }),
+      let selected = sorted.first(where: { $0.pid == selection })
+    {
+      if visible.isEmpty {
+        visible.append(selected)
+      } else {
+        visible[visible.count - 1] = selected
+      }
+    }
+    return visible
   }
 
   var body: some View {
-    VStack(spacing: 0) {
-      SystemOverview(snapshot: monitor.snapshot)
-      Divider()
-      processHeader
-      processTable
-      Divider()
-      statusBar
+    HStack(spacing: 0) {
+      VStack(spacing: 0) {
+        SystemOverview(
+          snapshot: monitor.snapshot,
+          temperatureUnit: settings.temperatureUnit
+        )
+        Divider()
+        processHeader
+        processTable
+        Divider()
+        statusBar
+      }
+      if showsInspector {
+        Divider()
+        inspectorPane
+          .frame(width: 340)
+      }
     }
     .background(Color(nsColor: .windowBackgroundColor))
     .navigationTitle("MacScope")
@@ -98,7 +121,19 @@ struct DashboardView: View {
       }
 
       ToolbarItemGroup(placement: .primaryAction) {
+        Button {
+          toggleInspector()
+        } label: {
+          Label("Process Info", systemImage: "info.circle")
+        }
+        .help("Show Process Info")
+        .disabled(selectedProcess == nil)
+
         Menu {
+          Button("Show Process Info") {
+            showInspector()
+          }
+          Divider()
           Button("Quit Process") {
             if let selectedProcess {
               pendingCommand = .quit(selectedProcess)
@@ -123,6 +158,9 @@ struct DashboardView: View {
         .help("Settings")
       }
     }
+    .onChange(of: selection) { selected in
+      monitor.trackProcess(selected)
+    }
     .alert(item: $pendingCommand) { command in
       Alert(
         title: Text(command.title),
@@ -143,6 +181,41 @@ struct DashboardView: View {
       Button("OK", role: .cancel) { operationError = nil }
     } message: {
       Text(operationError ?? "")
+    }
+  }
+
+  @ViewBuilder
+  private var inspectorPane: some View {
+    if let selectedProcess {
+      ProcessInspectorView(
+        process: selectedProcess,
+        history: monitor.history(for: selectedProcess.pid),
+        onClose: { showsInspector = false }
+      )
+    } else {
+      VStack(spacing: 0) {
+        HStack {
+          Spacer()
+          Button {
+            showsInspector = false
+          } label: {
+            Image(systemName: "xmark")
+          }
+          .buttonStyle(.plain)
+          .help("Close Process Info")
+        }
+        .padding(12)
+        Spacer()
+        VStack(spacing: 8) {
+          Image(systemName: "info.circle")
+            .font(.title2)
+            .foregroundStyle(.secondary)
+          Text("Select a process to view its activity.")
+            .foregroundStyle(.secondary)
+        }
+        Spacer()
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
   }
 
@@ -191,6 +264,30 @@ struct DashboardView: View {
       }
       .width(100)
 
+      TableColumn("Disk Read", value: \.diskReadRate) { process in
+        Text(DisplayFormat.rate(process.diskReadRate))
+          .monospacedDigit()
+      }
+      .width(92)
+
+      TableColumn("Disk Write", value: \.diskWriteRate) { process in
+        Text(DisplayFormat.rate(process.diskWriteRate))
+          .monospacedDigit()
+      }
+      .width(92)
+
+      TableColumn("Download", value: \.networkDownloadRate) { process in
+        Text(DisplayFormat.rate(process.networkDownloadRate))
+          .monospacedDigit()
+      }
+      .width(96)
+
+      TableColumn("Upload", value: \.networkUploadRate) { process in
+        Text(DisplayFormat.rate(process.networkUploadRate))
+          .monospacedDigit()
+      }
+      .width(92)
+
       TableColumn("Threads", value: \.threadCount) { process in
         Text(process.threadCount, format: .number.grouping(.never))
           .monospacedDigit()
@@ -207,6 +304,8 @@ struct DashboardView: View {
       if let pid = selected.first,
         let process = monitor.snapshot.processes.first(where: { $0.pid == pid })
       {
+        Button("Show Process Info") { showInspector() }
+        Divider()
         Button("Quit Process") { pendingCommand = .quit(process) }
         Button("Force Quit", role: .destructive) {
           pendingCommand = .forceQuit(process)
@@ -232,10 +331,48 @@ struct DashboardView: View {
     .padding(.horizontal, 12)
     .frame(height: 28)
   }
+
+  private func toggleInspector() {
+    if showsInspector {
+      showsInspector = false
+    } else {
+      showInspector()
+    }
+  }
+
+  private func showInspector() {
+    guard !showsInspector else { return }
+    showsInspector = true
+    guard let window = NSApp.keyWindow ?? NSApp.mainWindow,
+      window.frame.width < 1_180,
+      let visibleFrame = window.screen?.visibleFrame
+    else {
+      return
+    }
+
+    var frame = window.frame
+    let targetWidth = min(1_180, visibleFrame.width)
+    let centeredOrigin = frame.midX - targetWidth / 2
+    frame.origin.x = min(
+      visibleFrame.maxX - targetWidth,
+      max(visibleFrame.minX, centeredOrigin)
+    )
+    frame.size.width = targetWidth
+    window.setFrame(frame, display: true, animate: true)
+  }
 }
 
 private struct SystemOverview: View {
   let snapshot: SystemSnapshot
+  let temperatureUnit: TemperatureUnit
+
+  private var temperatureColor: Color {
+    switch snapshot.cpu.temperature.status {
+    case .normal, .unavailable: .secondary
+    case .warm: .orange
+    case .hot: .red
+    }
+  }
 
   var body: some View {
     HStack(spacing: 0) {
@@ -246,7 +383,12 @@ private struct SystemOverview: View {
         value: DisplayFormat.percent(snapshot.cpu.total),
         detail:
           "User \(DisplayFormat.percent(snapshot.cpu.user))  System \(DisplayFormat.percent(snapshot.cpu.system))",
-        progress: snapshot.cpu.total / 100
+        progress: snapshot.cpu.total / 100,
+        accessory: DisplayFormat.temperature(
+          snapshot.cpu.temperature.socCelsius,
+          unit: temperatureUnit
+        ) ?? "Unavailable",
+        accessoryColor: temperatureColor
       )
       Divider()
       MetricView(
@@ -256,7 +398,9 @@ private struct SystemOverview: View {
         value:
           "\(DisplayFormat.bytes(snapshot.memory.used)) of \(DisplayFormat.bytes(snapshot.memory.total))",
         detail: "\(DisplayFormat.bytes(snapshot.memory.available)) available",
-        progress: snapshot.memory.fraction
+        progress: snapshot.memory.fraction,
+        accessory: nil,
+        accessoryColor: .secondary
       )
       Divider()
       MetricView(
@@ -267,7 +411,9 @@ private struct SystemOverview: View {
           "\(DisplayFormat.bytes(snapshot.disk.used)) of \(DisplayFormat.bytes(snapshot.disk.total))",
         detail:
           "↓ \(DisplayFormat.rate(snapshot.disk.readRate))  ↑ \(DisplayFormat.rate(snapshot.disk.writeRate))",
-        progress: snapshot.disk.fraction
+        progress: snapshot.disk.fraction,
+        accessory: nil,
+        accessoryColor: .secondary
       )
       Divider()
       MetricView(
@@ -276,7 +422,9 @@ private struct SystemOverview: View {
         color: .pink,
         value: "↓ \(DisplayFormat.rate(snapshot.network.downloadRate))",
         detail: "↑ \(DisplayFormat.rate(snapshot.network.uploadRate))",
-        progress: nil
+        progress: nil,
+        accessory: nil,
+        accessoryColor: .secondary
       )
     }
     .frame(height: 118)
@@ -291,12 +439,24 @@ private struct MetricView: View {
   let value: String
   let detail: String
   let progress: Double?
+  let accessory: String?
+  let accessoryColor: Color
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      Label(title, systemImage: systemImage)
-        .font(.subheadline.weight(.semibold))
-        .foregroundStyle(color)
+      HStack(spacing: 8) {
+        Label(title, systemImage: systemImage)
+          .font(.subheadline.weight(.semibold))
+          .foregroundStyle(color)
+        Spacer(minLength: 0)
+        if let accessory {
+          Text(accessory)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(accessoryColor)
+            .monospacedDigit()
+            .lineLimit(1)
+        }
+      }
       Text(value)
         .font(.title3.weight(.semibold))
         .monospacedDigit()
