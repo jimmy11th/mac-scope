@@ -144,6 +144,7 @@ class MaintenanceService:
                 )
             )
         )
+        self._registered_copy_paths: set[Path] = set()
 
     def set_scan_roots(self, scan_roots: Iterable[Path]) -> None:
         self.scan_roots = tuple(path.expanduser().absolute() for path in scan_roots)
@@ -405,8 +406,9 @@ class MaintenanceService:
     ) -> tuple[Path, ...]:
         if not bundle_id:
             return ()
-        candidates = list(self._application_paths(None))
-        candidates.extend(self._spotlight_application_paths(bundle_id))
+        candidates = list(self._spotlight_application_paths(bundle_id))
+        if not candidates:
+            candidates.extend(self._application_paths(None))
         copies: list[Path] = []
         for candidate in candidates:
             candidate = candidate.expanduser().absolute()
@@ -425,7 +427,36 @@ class MaintenanceService:
                 continue
             if candidate_bundle_id == bundle_id and candidate not in copies:
                 copies.append(candidate)
+                self._registered_copy_paths.add(candidate)
         return tuple(sorted(copies, key=lambda path: str(path).casefold()))
+
+    def application_copy_items(
+        self,
+        bundle_id: str,
+        *,
+        excluding: Path | None = None,
+    ) -> tuple[MaintenanceItem, ...]:
+        items: list[MaintenanceItem] = []
+        for path in self.find_application_copies(bundle_id, excluding=excluding):
+            try:
+                candidate_bundle_id, name = self._application_metadata(path)
+                size, _ = self._path_size(path, None)
+                blocked = "maintenance.running" if self._application_running(path) else ""
+                items.append(
+                    self._item(
+                        path,
+                        MaintenanceKind.APPLICATION,
+                        "maintenance.category.app_copy",
+                        size,
+                        identity=self._identity(path),
+                        name=name,
+                        group=candidate_bundle_id,
+                        blocked_reason=blocked,
+                    )
+                )
+            except (OSError, ValueError, plistlib.InvalidFileException):
+                continue
+        return tuple(items)
 
     @staticmethod
     def release_file_cache(timeout: float = 20.0) -> tuple[bool, str]:
@@ -455,7 +486,7 @@ class MaintenanceService:
         if item.kind is MaintenanceKind.APPLICATION:
             allowed = any(
                 path.is_relative_to(root) and path != root for root in self.application_roots
-            )
+            ) or path in self._registered_copy_paths
         elif item.kind in {MaintenanceKind.LARGE_FILE, MaintenanceKind.DUPLICATE}:
             allowed = any(path.is_relative_to(root) and path != root for root in self.scan_roots)
         else:
@@ -621,8 +652,14 @@ class MaintenanceService:
     @staticmethod
     def _application_running(path: Path) -> bool:
         app = path.absolute()
+        try:
+            native_host_pid = int(os.environ.get("MACSCOPE_HOST_PID", ""))
+        except ValueError:
+            native_host_pid = 0
         for process in psutil.process_iter(["exe"], ad_value=None):
             try:
+                if process.pid == native_host_pid:
+                    continue
                 executable = process.info.get("exe")
                 if executable and Path(executable).absolute().is_relative_to(app):
                     return True

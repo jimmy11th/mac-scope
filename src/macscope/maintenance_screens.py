@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +13,7 @@ from textual import events
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.coordinate import Coordinate
 from textual.screen import ModalScreen
 from textual.timer import Timer
 from textual.widgets import Button, DataTable, Label, ProgressBar, Static
@@ -32,11 +34,42 @@ from macscope.screens import ConfirmScreen
 from macscope.service import MonitorService
 from macscope.settings import Settings
 
-ACTIVITY_FRAMES = ("◐", "◓", "◑", "◒")
+ACTIVITY_FRAMES = (
+    "▰▱▱▱▱▱",
+    "▱▰▱▱▱▱",
+    "▱▱▰▱▱▱",
+    "▱▱▱▰▱▱",
+    "▱▱▱▱▰▱",
+    "▱▱▱▱▱▰",
+    "▱▱▱▱▰▱",
+    "▱▱▱▰▱▱",
+    "▱▱▰▱▱▱",
+    "▱▰▱▱▱▱",
+)
+MIN_ACTIVITY_SECONDS = 0.36
 
 
 def cleanup_state(localizer: Localizer, state: str) -> str:
     return localizer(f"maintenance.cleanup_state.{state}")
+
+
+def activity_line(screen: ModalScreen, frame: str, message: str) -> Text:
+    colors = getattr(screen.app, "theme_colors", {})
+    line = Text(frame, style=f"bold {colors.get('accent', 'cyan')}")
+    line.append(f"  {message}", style=f"bold {colors.get('text', 'white')}")
+    return line
+
+
+def update_state_cell(
+    table: DataTable,
+    items: list[MaintenanceItem] | tuple[MaintenanceItem, ...],
+    item: MaintenanceItem,
+    state: str,
+    color: str,
+) -> None:
+    row = next((index for index, candidate in enumerate(items) if candidate.id == item.id), None)
+    if row is not None:
+        table.update_cell_at(Coordinate(row, 3), Text(state, style=f"bold {color}"))
 
 
 class MaintenanceScreen(ModalScreen[None]):
@@ -72,6 +105,7 @@ class MaintenanceScreen(ModalScreen[None]):
         self._activity_timer: Timer | None = None
         self._activity_frame = 0
         self._activity_message = ""
+        self._last_scan_progress = 0.0
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="dialog maintenance-dialog"):
@@ -281,6 +315,7 @@ class MaintenanceScreen(ModalScreen[None]):
 
     async def _clean(self, items: list[MaintenanceItem]) -> None:
         self._cleaning = True
+        started_at = time.monotonic()
         self._set_buttons_disabled(True)
         self.progress_states.update({item.id: "queued" for item in items})
         self._show_cleanup_progress(len(items))
@@ -293,6 +328,9 @@ class MaintenanceScreen(ModalScreen[None]):
                 cache_mode=self.settings.cache_cleanup_mode,
                 progress=self._cleanup_progress_from_thread,
             )
+            remaining = MIN_ACTIVITY_SECONDS - (time.monotonic() - started_at)
+            if remaining > 0:
+                await asyncio.sleep(remaining)
             if self.is_mounted:
                 self._apply_cleanup_result(result)
         except Exception as exc:  # noqa: BLE001 - keep cleanup results visible.
@@ -335,12 +373,9 @@ class MaintenanceScreen(ModalScreen[None]):
                 errors=len(result.errors),
             )
         self.query_one("#maintenance-status", Static).update(status)
-        self.query_one("#maintenance-current", Static).update(status)
-        if result.errors:
-            self.notify(
-                self.localizer("maintenance.cleanup_errors", count=len(result.errors)),
-                severity="warning",
-            )
+        current = self.query_one("#maintenance-current", Static)
+        current.update("")
+        current.remove_class("active")
 
     def _toggle_row(self, row: int) -> None:
         if self.mode == "uninstall":
@@ -612,6 +647,10 @@ class MaintenanceScreen(ModalScreen[None]):
         )
 
     def _progress_from_thread(self, count: int, path: str) -> None:
+        now = time.monotonic()
+        if now - self._last_scan_progress < 0.08:
+            return
+        self._last_scan_progress = now
         try:
             self.app.call_from_thread(self._update_progress, count, path)
         except RuntimeError:
@@ -700,13 +739,20 @@ class MaintenanceScreen(ModalScreen[None]):
             item=item.name,
             path=str(item.path),
         )
-        self._render_items()
+        colors = getattr(self.app, "theme_colors", {})
+        update_state_cell(
+            self.query_one("#maintenance-results", DataTable),
+            self.visible_items,
+            item,
+            cleanup_state(self.localizer, state),
+            colors.get("accent", "cyan"),
+        )
 
     def _start_activity(self, message: str) -> None:
         self._activity_message = message
         self._activity_frame = 0
         self._stop_activity()
-        self._activity_timer = self.set_interval(0.12, self._animate_activity)
+        self._activity_timer = self.set_interval(0.16, self._animate_activity)
         self._animate_activity()
 
     def _animate_activity(self) -> None:
@@ -714,7 +760,9 @@ class MaintenanceScreen(ModalScreen[None]):
             return
         frame = ACTIVITY_FRAMES[self._activity_frame % len(ACTIVITY_FRAMES)]
         self._activity_frame += 1
-        self.query_one("#maintenance-current", Static).update(f"{frame}  {self._activity_message}")
+        self.query_one("#maintenance-current", Static).update(
+            activity_line(self, frame, self._activity_message)
+        )
 
     def _stop_activity(self) -> None:
         if self._activity_timer is not None:
@@ -740,7 +788,8 @@ class UninstallDetailsScreen(ModalScreen[CleanupResult | None]):
         super().__init__()
         self.application = application
         self.related = related
-        self.items = (application,) + related
+        self.copy_items: tuple[MaintenanceItem, ...] = ()
+        self.items: list[MaintenanceItem] = [application, *related]
         self.maintenance = maintenance
         self.settings = settings
         self.localizer = localizer
@@ -859,36 +908,48 @@ class UninstallDetailsScreen(ModalScreen[CleanupResult | None]):
         self._render_items()
 
     async def _load_other_copies(self) -> None:
-        copies = await asyncio.to_thread(
-            self.maintenance.find_application_copies,
+        copy_items = await asyncio.to_thread(
+            self.maintenance.application_copy_items,
             self.application.group,
             excluding=self.application.path,
         )
         if not self.is_mounted:
             return
-        self.other_copies = copies
+        table = self.query_one("#uninstall-items", DataTable)
+        cursor_item_id = (
+            self.items[table.cursor_row].id if 0 <= table.cursor_row < len(self.items) else ""
+        )
+        self.copy_items = copy_items
+        self.other_copies = tuple(item.path for item in copy_items)
+        self.items = [self.application, *copy_items, *self.related]
         self._copies_loading = False
         warning = self.query_one("#uninstall-copy-warning", Static)
-        if copies:
-            paths = "\n".join(f"  {path}" for path in copies[:2])
+        if copy_items:
             warning.update(
                 self.localizer(
                     "maintenance.uninstall.other_copies",
-                    count=len(copies),
-                    paths=paths,
+                    count=len(copy_items),
                 )
             )
             warning.add_class("visible")
         else:
             warning.update("")
             warning.remove_class("visible")
-        self._update_actions()
+        cursor_row = next(
+            (
+                index
+                for index, item in enumerate(self.items)
+                if item.id == cursor_item_id
+            ),
+            0,
+        )
+        self._render_items(cursor_row=cursor_row)
 
     def _toggle_row(self, row: int) -> None:
         if self._cleaning or not 0 <= row < len(self.items):
             return
         item = self.items[row]
-        if item.kind is MaintenanceKind.APPLICATION or item.id in self.completed:
+        if item.id == self.application.id or item.id in self.completed:
             return
         if item.blocked_reason:
             self.notify(self.localizer(item.blocked_reason), severity="warning")
@@ -911,6 +972,7 @@ class UninstallDetailsScreen(ModalScreen[CleanupResult | None]):
         muted = colors.get("muted", "grey50")
         normal = colors.get("normal", "green")
         danger = colors.get("danger", "red")
+        warning = colors.get("warning", "yellow")
         for item in self.items:
             selected = item.id in self.selected
             completed = item.id in self.completed
@@ -920,8 +982,12 @@ class UninstallDetailsScreen(ModalScreen[CleanupResult | None]):
                 style = f"bold {normal}"
             if failure is not None:
                 style = f"bold {danger}"
+            elif item.blocked_reason:
+                style = f"bold {warning}"
             if failure is not None:
                 state = self.localizer(f"maintenance.failure.{failure.code.value}")
+            elif item.blocked_reason:
+                state = self.localizer(item.blocked_reason)
             elif item.id in self.progress_states:
                 state = cleanup_state(self.localizer, self.progress_states[item.id])
             elif item.category_key in {
@@ -930,7 +996,11 @@ class UninstallDetailsScreen(ModalScreen[CleanupResult | None]):
             }:
                 state = self.localizer("maintenance.user_data")
             elif item.kind is MaintenanceKind.APPLICATION:
-                state = self.localizer("maintenance.uninstall.required")
+                state = self.localizer(
+                    "maintenance.uninstall.required"
+                    if item.id == self.application.id
+                    else "maintenance.uninstall.copy_optional"
+                )
             else:
                 state = ""
             table.add_row(
@@ -956,11 +1026,12 @@ class UninstallDetailsScreen(ModalScreen[CleanupResult | None]):
             if item.id in self.selected and item.id not in self.completed
         ]
         related_count = sum(item.kind is MaintenanceKind.RESIDUE for item in pending)
+        app_count = sum(item.kind is MaintenanceKind.APPLICATION for item in pending)
         size = sum(item.size for item in pending)
         action = self.query_one("#uninstall-confirm", Button)
         if self.failures and {item.id for item in pending} == set(self.failures):
             action.label = self.localizer("maintenance.retry", count=len(pending))
-        elif self.application.id in self.completed:
+        elif self.application.id in self.completed and not app_count:
             action.label = self.localizer(
                 "maintenance.clean_count",
                 count=len(pending),
@@ -969,6 +1040,7 @@ class UninstallDetailsScreen(ModalScreen[CleanupResult | None]):
         else:
             action.label = self.localizer(
                 "maintenance.uninstall.single_action_detail",
+                apps=app_count,
                 related=related_count,
                 size=bytes_value(size),
             )
@@ -1000,6 +1072,7 @@ class UninstallDetailsScreen(ModalScreen[CleanupResult | None]):
 
     async def _clean(self, items: list[MaintenanceItem]) -> None:
         self._cleaning = True
+        started_at = time.monotonic()
         self._attempted = True
         self.progress_states.update({item.id: "queued" for item in items})
         progress = self.query_one("#uninstall-progress", ProgressBar)
@@ -1015,6 +1088,9 @@ class UninstallDetailsScreen(ModalScreen[CleanupResult | None]):
                 cache_mode=self.settings.cache_cleanup_mode,
                 progress=self._progress_from_thread,
             )
+            remaining = MIN_ACTIVITY_SECONDS - (time.monotonic() - started_at)
+            if remaining > 0:
+                await asyncio.sleep(remaining)
             if self.is_mounted:
                 self._apply_result(result)
         except Exception as exc:  # noqa: BLE001 - keep the uninstall dialog recoverable.
@@ -1055,12 +1131,19 @@ class UninstallDetailsScreen(ModalScreen[CleanupResult | None]):
             ),
             kept=len(result.errors),
         )
-        if self.application.id in self.completed and self.other_copies:
-            status = self.localizer(
-                "maintenance.uninstall.result_with_copies",
-                result=status,
-                count=len(self.other_copies),
+        remaining_copies = [item for item in self.copy_items if item.id not in self.completed]
+        warning = self.query_one("#uninstall-copy-warning", Static)
+        if remaining_copies:
+            warning.update(
+                self.localizer(
+                    "maintenance.uninstall.other_copies",
+                    count=len(remaining_copies),
+                )
             )
+            warning.add_class("visible")
+        else:
+            warning.update("")
+            warning.remove_class("visible")
         self.query_one("#uninstall-current", Static).update(status)
         self.query_one("#uninstall-close", Button).label = self.localizer("common.close")
         self._render_items()
@@ -1104,13 +1187,20 @@ class UninstallDetailsScreen(ModalScreen[CleanupResult | None]):
             item=item.name,
             path=str(item.path),
         )
-        self._render_items()
+        colors = getattr(self.app, "theme_colors", {})
+        update_state_cell(
+            self.query_one("#uninstall-items", DataTable),
+            self.items,
+            item,
+            cleanup_state(self.localizer, state),
+            colors.get("accent", "cyan"),
+        )
 
     def _start_activity(self, message: str) -> None:
         self._activity_message = message
         self._activity_frame = 0
         self._stop_activity()
-        self._activity_timer = self.set_interval(0.12, self._animate_activity)
+        self._activity_timer = self.set_interval(0.16, self._animate_activity)
         self._animate_activity()
 
     def _animate_activity(self) -> None:
@@ -1118,7 +1208,9 @@ class UninstallDetailsScreen(ModalScreen[CleanupResult | None]):
             return
         frame = ACTIVITY_FRAMES[self._activity_frame % len(ACTIVITY_FRAMES)]
         self._activity_frame += 1
-        self.query_one("#uninstall-current", Static).update(f"{frame}  {self._activity_message}")
+        self.query_one("#uninstall-current", Static).update(
+            activity_line(self, frame, self._activity_message)
+        )
 
     def _stop_activity(self) -> None:
         if self._activity_timer is not None:

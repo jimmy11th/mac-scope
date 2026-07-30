@@ -9,6 +9,7 @@ from textual import events
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Grid
+from textual.screen import ModalScreen
 from textual.timer import Timer
 from textual.widgets import Button, DataTable, Footer, Header, Static, Tab, Tabs
 
@@ -497,8 +498,9 @@ class MacScopeApp(App[None]):
         display: none;
         width: 100%;
         height: 1;
-        margin-bottom: 1;
+        margin: 0 0 1 0;
         color: $accent;
+        background: $surface-alt;
     }
 
     #maintenance-progress.active,
@@ -509,8 +511,13 @@ class MacScopeApp(App[None]):
     #maintenance-current,
     #uninstall-current {
         display: none;
-        height: 2;
-        color: $muted;
+        height: 3;
+        margin-bottom: 1;
+        padding: 0 1;
+        color: $foreground;
+        background: $surface-alt;
+        text-style: bold;
+        content-align: left middle;
     }
 
     #maintenance-current.active,
@@ -750,7 +757,7 @@ class MacScopeApp(App[None]):
             self._open_details(panel.pids[event.cursor_row])
 
     async def _collect_once(self) -> None:
-        if self.monitoring_paused or self._collecting:
+        if self.monitoring_paused or self._collecting or isinstance(self.screen, ModalScreen):
             return
         self._collecting = True
         try:

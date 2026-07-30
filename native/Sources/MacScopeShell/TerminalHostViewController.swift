@@ -81,6 +81,12 @@ final class TerminalHostViewController: NSViewController,
         terminal.bottomAnchor.constraint(equalTo: view.bottomAnchor),
       ])
       view.layoutSubtreeIfNeeded()
+      terminal.metalBufferingMode = .perFrameAggregated
+      do {
+        try terminal.setUseMetal(true)
+      } catch {
+        NSLog("MacScope could not enable accelerated terminal rendering: %@", error.localizedDescription)
+      }
       terminalView = terminal
       processStarted = true
       terminal.startProcess(
@@ -114,11 +120,6 @@ final class TerminalHostViewController: NSViewController,
     terminal.nativeBackgroundColor = NSColor(calibratedWhite: 0.055, alpha: 1)
     terminal.caretColor = NSColor.systemTeal
     terminal.getTerminal().setCursorStyle(.steadyBlock)
-    do {
-      try terminal.setUseMetal(false)
-    } catch {
-      NSLog("MacScope could not configure terminal rendering: %@", error.localizedDescription)
-    }
     return terminal
   }
 
