@@ -5,6 +5,7 @@ import SwiftUI
 struct ProcessInspectorView: View {
   let process: ProcessRow
   let history: [ProcessHistoryPoint]
+  let theme: ThemePalette
   let onClose: () -> Void
 
   var body: some View {
@@ -80,12 +81,12 @@ struct ProcessInspectorView: View {
           x: .value("Time", point.timestamp),
           y: .value("CPU", point.cpuPercent)
         )
-        .foregroundStyle(.blue.opacity(0.12))
+        .foregroundStyle(theme.cpuColor.opacity(0.12))
         LineMark(
           x: .value("Time", point.timestamp),
           y: .value("CPU", point.cpuPercent)
         )
-        .foregroundStyle(.blue)
+        .foregroundStyle(theme.cpuColor)
         .lineStyle(StrokeStyle(lineWidth: 1.5))
       }
       .chartXAxis(.hidden)
@@ -106,8 +107,8 @@ struct ProcessInspectorView: View {
   private var ioChart: some View {
     InspectorSection(title: "I/O · Last 60 Seconds") {
       HStack(spacing: 12) {
-        ChartLegend(color: .orange, title: "Disk")
-        ChartLegend(color: .pink, title: "Network")
+        ChartLegend(color: theme.diskColor, title: "Disk")
+        ChartLegend(color: theme.networkColor, title: "Network")
       }
       Chart {
         ForEach(history) { point in
@@ -115,13 +116,13 @@ struct ProcessInspectorView: View {
             x: .value("Time", point.timestamp),
             y: .value("Disk", point.diskRate)
           )
-          .foregroundStyle(.orange)
+          .foregroundStyle(theme.diskColor)
           .lineStyle(StrokeStyle(lineWidth: 1.5))
           LineMark(
             x: .value("Time", point.timestamp),
             y: .value("Network", point.networkRate)
           )
-          .foregroundStyle(.pink)
+          .foregroundStyle(theme.networkColor)
           .lineStyle(StrokeStyle(lineWidth: 1.5))
         }
       }
@@ -147,12 +148,12 @@ struct ProcessInspectorView: View {
           x: .value("Time", point.timestamp),
           y: .value("Memory", Double(point.memoryBytes))
         )
-        .foregroundStyle(.green.opacity(0.12))
+        .foregroundStyle(theme.memoryColor.opacity(0.12))
         LineMark(
           x: .value("Time", point.timestamp),
           y: .value("Memory", Double(point.memoryBytes))
         )
-        .foregroundStyle(.green)
+        .foregroundStyle(theme.memoryColor)
         .lineStyle(StrokeStyle(lineWidth: 1.5))
       }
       .chartXAxis(.hidden)

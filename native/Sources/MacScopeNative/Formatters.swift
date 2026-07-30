@@ -2,12 +2,12 @@ import Foundation
 
 enum DisplayFormat {
   static func bytes(_ value: UInt64) -> String {
-    ByteCountFormatter.string(fromByteCount: Int64(clamping: value), countStyle: .memory)
+    formattedByteCount(Double(value), base: 1_024)
   }
 
   static func rate(_ value: Double) -> String {
     guard value.isFinite, value > 0 else { return "0 B/s" }
-    return "\(ByteCountFormatter.string(fromByteCount: Int64(value), countStyle: .file))/s"
+    return "\(formattedByteCount(value, base: 1_000))/s"
   }
 
   static func percent(_ value: Double) -> String {
@@ -48,5 +48,36 @@ enum DisplayFormat {
     case "U": "Waiting"
     default: "Unknown"
     }
+  }
+
+  static func date(_ value: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.locale = appLocale
+    formatter.dateStyle = .medium
+    formatter.timeStyle = .none
+    return formatter.string(from: value)
+  }
+
+  private static var appLocale: Locale {
+    let identifier = UserDefaults.standard.string(forKey: "native.language") ?? "en"
+    return Locale(identifier: identifier)
+  }
+
+  private static func formattedByteCount(_ value: Double, base: Double) -> String {
+    let units = ["B", "KB", "MB", "GB", "TB", "PB"]
+    var scaled = max(0, value)
+    var unitIndex = 0
+    while scaled >= base, unitIndex < units.count - 1 {
+      scaled /= base
+      unitIndex += 1
+    }
+
+    let formatter = NumberFormatter()
+    formatter.locale = appLocale
+    formatter.numberStyle = .decimal
+    formatter.minimumFractionDigits = 0
+    formatter.maximumFractionDigits = scaled >= 100 ? 1 : 2
+    let number = formatter.string(from: NSNumber(value: scaled)) ?? "0"
+    return "\(number) \(units[unitIndex])"
   }
 }

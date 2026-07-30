@@ -4,29 +4,41 @@ import SwiftUI
 struct MacScopeNativeApp: App {
   @StateObject private var monitor = SystemMonitor()
   @StateObject private var settings = AppSettings()
+  @StateObject private var maintenance = MaintenanceStore()
 
   var body: some Scene {
     WindowGroup("MacScope") {
-      DashboardView()
+      MacScopeRootView()
         .environmentObject(monitor)
         .environmentObject(settings)
-        .frame(minWidth: 920, minHeight: 600)
+        .environmentObject(maintenance)
+        .environment(\.locale, settings.language.locale)
+        .preferredColorScheme(settings.appearance.colorScheme)
+        .tint(settings.activeTheme.accentColor)
+        .frame(minWidth: 1_020, minHeight: 620)
         .onAppear {
+          maintenance.updateLanguage(settings.language)
           monitor.refreshInterval = settings.refreshInterval
           monitor.start()
+        }
+        .onChange(of: settings.language) { language in
+          maintenance.updateLanguage(language)
         }
         .onChange(of: settings.refreshInterval) { interval in
           monitor.refreshInterval = interval
           monitor.refreshNow()
         }
     }
-    .defaultSize(width: 1_180, height: 760)
+    .defaultSize(width: 1_320, height: 800)
     .windowStyle(.titleBar)
 
     Settings {
       SettingsView()
         .environmentObject(settings)
-        .frame(width: 430, height: 230)
+        .environment(\.locale, settings.language.locale)
+        .preferredColorScheme(settings.appearance.colorScheme)
+        .tint(settings.activeTheme.accentColor)
+        .frame(width: 660, height: 520)
     }
   }
 }

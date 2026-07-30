@@ -86,7 +86,9 @@ struct DashboardView: View {
       VStack(spacing: 0) {
         SystemOverview(
           snapshot: monitor.snapshot,
-          temperatureUnit: settings.temperatureUnit
+          temperatureUnit: settings.temperatureUnit,
+          language: settings.language,
+          theme: settings.activeTheme
         )
         Divider()
         processHeader
@@ -150,12 +152,6 @@ struct DashboardView: View {
         .help("Process Actions")
         .disabled(selectedProcess == nil)
 
-        Button {
-          NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        } label: {
-          Label("Settings", systemImage: "gearshape")
-        }
-        .help("Settings")
       }
     }
     .onChange(of: selection) { selected in
@@ -190,6 +186,7 @@ struct DashboardView: View {
       ProcessInspectorView(
         process: selectedProcess,
         history: monitor.history(for: selectedProcess.pid),
+        theme: settings.activeTheme,
         onClose: { showsInspector = false }
       )
     } else {
@@ -365,6 +362,8 @@ struct DashboardView: View {
 private struct SystemOverview: View {
   let snapshot: SystemSnapshot
   let temperatureUnit: TemperatureUnit
+  let language: AppLanguage
+  let theme: ThemePalette
 
   private var temperatureColor: Color {
     switch snapshot.cpu.temperature.status {
@@ -379,10 +378,13 @@ private struct SystemOverview: View {
       MetricView(
         title: "CPU",
         systemImage: "cpu",
-        color: .blue,
+        color: theme.cpuColor,
         value: DisplayFormat.percent(snapshot.cpu.total),
-        detail:
-          "User \(DisplayFormat.percent(snapshot.cpu.user))  System \(DisplayFormat.percent(snapshot.cpu.system))",
+        detail: localized(
+          "User %@  System %@",
+          DisplayFormat.percent(snapshot.cpu.user),
+          DisplayFormat.percent(snapshot.cpu.system)
+        ),
         progress: snapshot.cpu.total / 100,
         accessory: DisplayFormat.temperature(
           snapshot.cpu.temperature.socCelsius,
@@ -394,10 +396,13 @@ private struct SystemOverview: View {
       MetricView(
         title: "Memory",
         systemImage: "memorychip",
-        color: .green,
-        value:
-          "\(DisplayFormat.bytes(snapshot.memory.used)) of \(DisplayFormat.bytes(snapshot.memory.total))",
-        detail: "\(DisplayFormat.bytes(snapshot.memory.available)) available",
+        color: theme.memoryColor,
+        value: localized(
+          "%@ of %@",
+          DisplayFormat.bytes(snapshot.memory.used),
+          DisplayFormat.bytes(snapshot.memory.total)
+        ),
+        detail: localized("%@ available", DisplayFormat.bytes(snapshot.memory.available)),
         progress: snapshot.memory.fraction,
         accessory: nil,
         accessoryColor: .secondary
@@ -406,9 +411,12 @@ private struct SystemOverview: View {
       MetricView(
         title: "Disk",
         systemImage: "internaldrive",
-        color: .orange,
-        value:
-          "\(DisplayFormat.bytes(snapshot.disk.used)) of \(DisplayFormat.bytes(snapshot.disk.total))",
+        color: theme.diskColor,
+        value: localized(
+          "%@ of %@",
+          DisplayFormat.bytes(snapshot.disk.used),
+          DisplayFormat.bytes(snapshot.disk.total)
+        ),
         detail:
           "↓ \(DisplayFormat.rate(snapshot.disk.readRate))  ↑ \(DisplayFormat.rate(snapshot.disk.writeRate))",
         progress: snapshot.disk.fraction,
@@ -419,7 +427,7 @@ private struct SystemOverview: View {
       MetricView(
         title: "Network",
         systemImage: "network",
-        color: .pink,
+        color: theme.networkColor,
         value: "↓ \(DisplayFormat.rate(snapshot.network.downloadRate))",
         detail: "↑ \(DisplayFormat.rate(snapshot.network.uploadRate))",
         progress: nil,
@@ -429,6 +437,10 @@ private struct SystemOverview: View {
     }
     .frame(height: 118)
     .background(Color(nsColor: .controlBackgroundColor))
+  }
+
+  private func localized(_ key: String, _ arguments: CVarArg...) -> String {
+    AppLocalization.string(key, language: language, arguments: arguments)
   }
 }
 

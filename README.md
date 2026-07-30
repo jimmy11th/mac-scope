@@ -15,7 +15,7 @@ process table and guarded macOS maintenance tools.
 - Guarded terminate, force-kill, pause, resume, and nice-priority actions
 - Junk scanning, application uninstall with exact Bundle ID residue detection, large-file
   and duplicate-file cleanup, and memory relief
-- Single-application uninstall review with selectable related data and other registered
+- Single-application uninstall review with selectable related data and other installed
   copies available as optional items in the same removal operation
 - Per-item cleanup paths, states, animated activity feedback, and determinate progress
   remain visible after each cleanup operation
@@ -27,8 +27,8 @@ process table and guarded macOS maintenance tools.
 
 ## Requirements
 
-- macOS 13 or newer
-- Python 3.11 or newer
+- macOS 13 or newer for the native app
+- Python 3.11 or newer for the terminal app
 - A terminal with Unicode and 256-color support
 
 MacScope uses the built-in macOS `nettop`, `memory_pressure`, and `vm_stat` tools. It
@@ -55,14 +55,17 @@ uv tool install .
 macscope
 ```
 
-## Native macOS preview
+## Native macOS app
 
-The native preview is a standalone SwiftUI/AppKit application with no terminal, Python,
+The native app is a standalone SwiftUI/AppKit application with no terminal, Python,
 Textual, or `uv` runtime dependency. It provides live CPU and SoC temperature, memory,
 disk, and network status; per-process disk and network activity; a searchable and sortable
 native process table; a 60-second process inspector; guarded quit actions; and persistent
-monitoring settings. Maintenance workflows are being migrated to native views in later
-milestones.
+monitoring, appearance, cleanup, language, and theme settings. Native system tools cover
+junk cleanup, reviewed application uninstall with exact Bundle ID residue matching, large
+files, duplicate files, and inactive file-cache release. Destructive operations show every
+path and its progress, use Trash by default, and request administrator approval only through
+the standard macOS authorization dialog when it is actually required.
 
 Build and open the application with:
 
@@ -79,8 +82,8 @@ Build a compressed development DMG with:
 native/scripts/build_dmg.sh
 ```
 
-The default image is written to `native/build/MacScope-0.3.0-native-monitor.dmg`. The
-preview is ad-hoc signed and not notarized, so it is intended for local development rather
+The default image is written to `native/build/MacScope-0.4.0-native-tools.dmg`. The
+app is ad-hoc signed and not notarized, so it is intended for local development rather
 than public distribution.
 
 ## Keyboard
