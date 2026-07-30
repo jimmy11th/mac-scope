@@ -1,24 +1,24 @@
+import AppKit
 import SwiftUI
 
-struct MenuBarLogo: View {
-  var color: Color = .primary
-
-  var body: some View {
-    Canvas { context, size in
-      let minimum = min(size.width, size.height)
-      let lineWidth = max(1.4, minimum * 0.105)
-      let bounds = CGRect(
-        x: (size.width - minimum) / 2 + lineWidth / 2,
-        y: (size.height - minimum) / 2 + lineWidth / 2,
+@MainActor
+private enum MenuBarLogoAsset {
+  static let image: NSImage = {
+    let image = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { bounds in
+      let minimum = min(bounds.width, bounds.height)
+      let lineWidth = max(1.5, minimum * 0.105)
+      let symbolBounds = CGRect(
+        x: bounds.midX - minimum / 2 + lineWidth / 2,
+        y: bounds.midY - minimum / 2 + lineWidth / 2,
         width: minimum - lineWidth,
         height: minimum - lineWidth
       )
 
-      context.stroke(
-        Path(ellipseIn: bounds),
-        with: .color(color),
-        style: StrokeStyle(lineWidth: lineWidth)
-      )
+      NSColor.black.setStroke()
+
+      let outline = NSBezierPath(ovalIn: symbolBounds)
+      outline.lineWidth = lineWidth
+      outline.stroke()
 
       let points: [CGPoint] = [
         CGPoint(x: 0.14, y: 0.54),
@@ -30,26 +30,40 @@ struct MenuBarLogo: View {
         CGPoint(x: 0.72, y: 0.46),
         CGPoint(x: 0.86, y: 0.46),
       ]
-      var waveform = Path()
+      let waveform = NSBezierPath()
       for (index, point) in points.enumerated() {
-        let scaled = CGPoint(x: point.x * size.width, y: point.y * size.height)
+        let scaled = CGPoint(
+          x: bounds.minX + point.x * bounds.width,
+          y: bounds.minY + point.y * bounds.height
+        )
         if index == 0 {
           waveform.move(to: scaled)
         } else {
-          waveform.addLine(to: scaled)
+          waveform.line(to: scaled)
         }
       }
-      context.stroke(
-        waveform,
-        with: .color(color),
-        style: StrokeStyle(
-          lineWidth: lineWidth,
-          lineCap: .round,
-          lineJoin: .round
-        )
-      )
+      waveform.lineWidth = lineWidth
+      waveform.lineCapStyle = .round
+      waveform.lineJoinStyle = .round
+      waveform.stroke()
+      return true
     }
-    .accessibilityHidden(true)
+    image.isTemplate = true
+    image.accessibilityDescription = "MacScope"
+    return image
+  }()
+}
+
+struct MenuBarLogo: View {
+  var color: Color = .primary
+
+  var body: some View {
+    Image(nsImage: MenuBarLogoAsset.image)
+      .resizable()
+      .renderingMode(.template)
+      .aspectRatio(contentMode: .fit)
+      .foregroundStyle(color)
+      .accessibilityHidden(true)
   }
 }
 
@@ -78,20 +92,20 @@ struct MenuBarStatusContent: View {
       MenuBarLogo()
         .frame(width: 17, height: 17)
 
-      if displayMode == .compact {
-        ForEach(Array(selectedMetrics.enumerated()), id: \.element.id) { index, metric in
-          if index > 0 {
-            Text("·")
-              .foregroundStyle(.tertiary)
-          }
-          Text(value(for: metric))
-            .monospacedDigit()
-        }
+      if displayMode == .compact, !selectedMetrics.isEmpty {
+        Text(compactValue)
+          .monospacedDigit()
+          .lineLimit(1)
+          .fixedSize(horizontal: true, vertical: false)
       }
     }
     .fixedSize()
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(accessibilityValue)
+  }
+
+  private var compactValue: String {
+    selectedMetrics.map(value(for:)).joined(separator: " · ")
   }
 
   private func value(for metric: MenuBarMetric) -> String {
