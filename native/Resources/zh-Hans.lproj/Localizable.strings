@@ -193,7 +193,7 @@
 "Web Data" = "网页数据";
 "The theme file contains an invalid name or color value." = "主题文件包含无效的名称或颜色值。";
 "User %@  System %@" = "用户 %@  系统 %@";
-"%@ of %@" = "已用 %@，共 %@";
+"Used %@ / %@" = "已用 %@ / %@";
 "%@ available" = "可用 %@";
 "%lld selected · %@" = "已选择 %lld 项 · %@";
 "%lld applications" = "%lld 个应用程序";
@@ -253,3 +253,6 @@
 "Protected applications use the standard macOS administrator authorization dialog." = "移除受保护的应用时会使用标准 macOS 管理员授权对话框。";
 "Passwords Stay with macOS" = "密码仅由 macOS 处理";
 "MacScope never displays its own password field and never reads administrator credentials." = "MacScope 不会显示自有密码输入框，也不会读取管理员凭据。";
+"CPU · Last 1 Minute" = "CPU · 最近 1 分钟";
+"Memory · Last 1 Minute" = "内存 · 最近 1 分钟";
+"I/O · Last 1 Minute" = "I/O · 最近 1 分钟";

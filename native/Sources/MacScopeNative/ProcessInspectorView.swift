@@ -8,6 +8,11 @@ struct ProcessInspectorView: View {
   let theme: ThemePalette
   let onClose: () -> Void
 
+  private var historyRange: ClosedRange<Date> {
+    let end = history.last?.timestamp ?? .now
+    return end.addingTimeInterval(-60)...end
+  }
+
   var body: some View {
     VStack(spacing: 0) {
       header
@@ -76,7 +81,7 @@ struct ProcessInspectorView: View {
   }
 
   private var cpuChart: some View {
-    InspectorSection(title: "CPU · Last 60 Seconds") {
+    InspectorSection(title: "CPU · Last 1 Minute") {
       Chart(history) { point in
         AreaMark(
           x: .value("Time", point.timestamp),
@@ -90,6 +95,7 @@ struct ProcessInspectorView: View {
         .foregroundStyle(theme.cpuColor)
         .lineStyle(StrokeStyle(lineWidth: 1.5))
       }
+      .chartXScale(domain: historyRange)
       .chartXAxis(.hidden)
       .chartYAxis {
         AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
@@ -106,7 +112,7 @@ struct ProcessInspectorView: View {
   }
 
   private var ioChart: some View {
-    InspectorSection(title: "I/O · Last 60 Seconds") {
+    InspectorSection(title: "I/O · Last 1 Minute") {
       HStack(spacing: 12) {
         ChartLegend(color: theme.diskColor, title: "Disk")
         ChartLegend(color: theme.networkColor, title: "Network")
@@ -127,6 +133,7 @@ struct ProcessInspectorView: View {
           .lineStyle(StrokeStyle(lineWidth: 1.5))
         }
       }
+      .chartXScale(domain: historyRange)
       .chartXAxis(.hidden)
       .chartYAxis {
         AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
@@ -143,7 +150,7 @@ struct ProcessInspectorView: View {
   }
 
   private var memoryChart: some View {
-    InspectorSection(title: "Memory · Last 60 Seconds") {
+    InspectorSection(title: "Memory · Last 1 Minute") {
       Chart(history) { point in
         AreaMark(
           x: .value("Time", point.timestamp),
@@ -157,6 +164,7 @@ struct ProcessInspectorView: View {
         .foregroundStyle(theme.memoryColor)
         .lineStyle(StrokeStyle(lineWidth: 1.5))
       }
+      .chartXScale(domain: historyRange)
       .chartXAxis(.hidden)
       .chartYAxis {
         AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
@@ -212,7 +220,7 @@ struct ProcessInspectorView: View {
 }
 
 private struct InspectorSection<Content: View>: View {
-  let title: String
+  let title: LocalizedStringKey
   @ViewBuilder let content: Content
 
   var body: some View {

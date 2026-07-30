@@ -85,7 +85,7 @@ Build a compressed development DMG with:
 native/scripts/build_dmg.sh
 ```
 
-The default image is written to `native/build/MacScope-0.4.5-native-material.dmg`. The
+The default image is written to `native/build/MacScope-0.4.6-dynamic-metrics.dmg`. The
 app is ad-hoc signed and not notarized, so it is intended for local development rather
 than public distribution.
 
@@ -118,7 +118,8 @@ zero until a second set of counters is available.
 ## Settings
 
 Press `s` to configure MacScope. English is the default interface language, with
-Simplified Chinese available. Refresh intervals are `0.5`, `1`, `2`, or `5` seconds;
+Simplified Chinese available. Refresh intervals are `0.5`, `1`, `2`, or `5` seconds,
+with `2` seconds as the default;
 the default Top row count can be set from 1 to 20. Temperature can be displayed in
 Celsius or Fahrenheit. Smoothing, network-interface selection, MacScope process
 visibility, and inactive I/O rows are configurable as well.

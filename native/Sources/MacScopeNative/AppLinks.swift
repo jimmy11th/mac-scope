@@ -13,10 +13,10 @@ enum AppLinks {
 
 enum AppMetadata {
   static var version: String {
-    Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.4.5"
+    Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.4.6"
   }
 
   static var build: String {
-    Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "9"
+    Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "10"
   }
 }

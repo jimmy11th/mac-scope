@@ -1,15 +1,14 @@
 import AppKit
-import Foundation
 import SwiftUI
 
-struct ThemePalette: Codable, Hashable, Identifiable, Sendable {
-  var id: String
-  var name: String
-  var accentHex: String
-  var cpuHex: String
-  var memoryHex: String
-  var diskHex: String
-  var networkHex: String
+struct ThemePalette: Hashable, Identifiable, Sendable {
+  let id: String
+  let name: String
+  let accentHex: String
+  let cpuHex: String
+  let memoryHex: String
+  let diskHex: String
+  let networkHex: String
 
   static let system = ThemePalette(
     id: "system",
@@ -43,19 +42,13 @@ struct ThemePalette: Codable, Hashable, Identifiable, Sendable {
 
   static let builtIns = [system, graphite, highContrast]
 
-  var accentColor: Color { Color(hex: accentHex) }
+  var accentColor: Color {
+    id == Self.system.id ? Color(nsColor: .controlAccentColor) : Color(hex: accentHex)
+  }
   var cpuColor: Color { Color(hex: cpuHex) }
   var memoryColor: Color { Color(hex: memoryHex) }
   var diskColor: Color { Color(hex: diskHex) }
   var networkColor: Color { Color(hex: networkHex) }
-
-  var isValid: Bool {
-    let pattern = /^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/
-    return !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-      && [accentHex, cpuHex, memoryHex, diskHex, networkHex].allSatisfy {
-        $0.wholeMatch(of: pattern) != nil
-      }
-  }
 }
 
 extension Color {
@@ -79,16 +72,6 @@ extension Color {
       alpha = 1
     }
     self.init(.sRGB, red: red, green: green, blue: blue, opacity: alpha)
-  }
-
-  var hexString: String {
-    guard let color = NSColor(self).usingColorSpace(.sRGB) else { return "#0A84FF" }
-    return String(
-      format: "#%02X%02X%02X",
-      Int(round(color.redComponent * 255)),
-      Int(round(color.greenComponent * 255)),
-      Int(round(color.blueComponent * 255))
-    )
   }
 }
 

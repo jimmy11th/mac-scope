@@ -21,7 +21,7 @@ final class SystemMonitor: ObservableObject {
   private(set) var isRefreshing = false
   @Published var isPaused = false
 
-  private(set) var refreshInterval: Double = 1
+  private(set) var refreshInterval: Double = 2
 
   private let metricsSampler = SystemSampler()
   private let processSampler = SystemSampler()
@@ -40,7 +40,7 @@ final class SystemMonitor: ObservableObject {
   }
 
   func updateRefreshInterval(_ interval: Double) {
-    let normalizedInterval = [0.5, 1, 2, 5].contains(interval) ? interval : 1
+    let normalizedInterval = [0.5, 1, 2, 5].contains(interval) ? interval : 2
     guard refreshInterval != normalizedInterval else { return }
 
     refreshInterval = normalizedInterval
@@ -156,7 +156,7 @@ final class SystemMonitor: ObservableObject {
           await self.refreshProcesses(generation: generation)
         }
         let elapsed = ProcessInfo.processInfo.systemUptime - refreshStartedAt
-        let delaySeconds = max(0.05, max(1, self.refreshInterval) - elapsed)
+        let delaySeconds = max(0.05, max(0.5, self.refreshInterval) - elapsed)
         let delay = UInt64(delaySeconds * 1_000_000_000)
         try? await Task.sleep(nanoseconds: delay)
       }

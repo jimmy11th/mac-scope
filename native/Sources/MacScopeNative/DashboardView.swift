@@ -311,6 +311,13 @@ struct DashboardView: View {
         }
       }
     }
+    .simultaneousGesture(
+      TapGesture(count: 2)
+        .onEnded {
+          guard selectedProcess != nil else { return }
+          showInspector()
+        }
+    )
     .compactNativeScrollers()
   }
 
@@ -351,14 +358,6 @@ private struct SystemOverview: View {
   let language: AppLanguage
   let theme: ThemePalette
 
-  private var temperatureColor: Color {
-    switch metrics.snapshot.cpu.temperature.status {
-    case .normal, .unavailable: .secondary
-    case .warm: .orange
-    case .hot: .red
-    }
-  }
-
   var body: some View {
     let snapshot = metrics.snapshot
     HStack(spacing: 0) {
@@ -377,7 +376,10 @@ private struct SystemOverview: View {
           snapshot.cpu.temperature.socCelsius,
           unit: temperatureUnit
         ) ?? "Unavailable",
-        accessoryColor: temperatureColor
+        accessoryColor: MetricColorScale.temperature(
+          celsius: snapshot.cpu.temperature.socCelsius
+        ),
+        progressColor: MetricColorScale.utilization(fraction: snapshot.cpu.total / 100)
       )
       Divider()
       MetricView(
@@ -385,14 +387,15 @@ private struct SystemOverview: View {
         systemImage: "memorychip",
         color: theme.memoryColor,
         value: localized(
-          "%@ of %@",
+          "Used %@ / %@",
           DisplayFormat.bytes(snapshot.memory.used),
           DisplayFormat.bytes(snapshot.memory.total)
         ),
         detail: localized("%@ available", DisplayFormat.bytes(snapshot.memory.available)),
         progress: snapshot.memory.fraction,
         accessory: nil,
-        accessoryColor: .secondary
+        accessoryColor: .secondary,
+        progressColor: MetricColorScale.utilization(fraction: snapshot.memory.fraction)
       )
       Divider()
       MetricView(
@@ -400,7 +403,7 @@ private struct SystemOverview: View {
         systemImage: "internaldrive",
         color: theme.diskColor,
         value: localized(
-          "%@ of %@",
+          "Used %@ / %@",
           DisplayFormat.bytes(snapshot.disk.used),
           DisplayFormat.bytes(snapshot.disk.total)
         ),
@@ -408,7 +411,8 @@ private struct SystemOverview: View {
           "↓ \(DisplayFormat.rate(snapshot.disk.readRate))  ↑ \(DisplayFormat.rate(snapshot.disk.writeRate))",
         progress: snapshot.disk.fraction,
         accessory: nil,
-        accessoryColor: .secondary
+        accessoryColor: .secondary,
+        progressColor: MetricColorScale.utilization(fraction: snapshot.disk.fraction)
       )
       Divider()
       MetricView(
@@ -419,7 +423,9 @@ private struct SystemOverview: View {
         detail: "↑ \(DisplayFormat.rate(snapshot.network.uploadRate))",
         progress: nil,
         accessory: nil,
-        accessoryColor: .secondary
+        accessoryColor: .secondary,
+        valueColor: MetricColorScale.network(rate: snapshot.network.downloadRate),
+        detailColor: MetricColorScale.network(rate: snapshot.network.uploadRate)
       )
     }
     .frame(height: 118)
@@ -428,6 +434,43 @@ private struct SystemOverview: View {
 
   private func localized(_ key: String, _ arguments: CVarArg...) -> String {
     AppLocalization.string(key, language: language, arguments: arguments)
+  }
+}
+
+private enum MetricColorScale {
+  static func utilization(fraction: Double) -> Color {
+    switch min(1, max(0, fraction)) {
+    case ...0.30: .green
+    case ...0.50: .blue
+    case ...0.70: .yellow
+    case ...0.90: .orange
+    default: .red
+    }
+  }
+
+  static func network(rate: Double) -> Color {
+    switch max(0, rate) {
+    case ..<(10 * 1_024): .red
+    case ..<(500 * 1_024): .orange
+    case ..<(3 * 1_024 * 1_024): .yellow
+    case ..<(10 * 1_024 * 1_024): .blue
+    default: .green
+    }
+  }
+
+  static func temperature(celsius: Double?) -> Color {
+    guard let celsius else { return .secondary }
+    return switch celsius {
+    case ..<(-20): .red
+    case ..<(-10): .orange
+    case ..<0: .yellow
+    case ..<10: .blue
+    case ..<30: .green
+    case ..<50: .blue
+    case ..<70: .yellow
+    case ..<90: .orange
+    default: .red
+    }
   }
 }
 
@@ -465,6 +508,35 @@ private struct MetricView: View {
   let progress: Double?
   let accessory: String?
   let accessoryColor: Color
+  let valueColor: Color
+  let detailColor: Color
+  let progressColor: Color?
+
+  init(
+    title: String,
+    systemImage: String,
+    color: Color,
+    value: String,
+    detail: String,
+    progress: Double?,
+    accessory: String?,
+    accessoryColor: Color,
+    valueColor: Color = .primary,
+    detailColor: Color = .secondary,
+    progressColor: Color? = nil
+  ) {
+    self.title = title
+    self.systemImage = systemImage
+    self.color = color
+    self.value = value
+    self.detail = detail
+    self.progress = progress
+    self.accessory = accessory
+    self.accessoryColor = accessoryColor
+    self.valueColor = valueColor
+    self.detailColor = detailColor
+    self.progressColor = progressColor
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
@@ -483,18 +555,19 @@ private struct MetricView: View {
       }
       Text(value)
         .font(.title3.weight(.semibold))
+        .foregroundStyle(valueColor)
         .monospacedDigit()
         .lineLimit(1)
         .minimumScaleFactor(0.8)
       if let progress {
         ProgressView(value: min(1, max(0, progress)))
-          .tint(color)
+          .tint(progressColor ?? color)
       } else {
         Spacer(minLength: 4)
       }
       Text(detail)
         .font(.caption)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(detailColor)
         .monospacedDigit()
         .lineLimit(1)
     }

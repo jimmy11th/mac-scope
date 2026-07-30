@@ -193,7 +193,7 @@
 "Web Data" = "Web Data";
 "The theme file contains an invalid name or color value." = "The theme file contains an invalid name or color value.";
 "User %@  System %@" = "User %@  System %@";
-"%@ of %@" = "%@ of %@";
+"Used %@ / %@" = "Used %@ / %@";
 "%@ available" = "%@ available";
 "%lld selected · %@" = "%lld selected · %@";
 "%lld applications" = "%lld applications";
@@ -253,3 +253,6 @@
 "Protected applications use the standard macOS administrator authorization dialog." = "Protected applications use the standard macOS administrator authorization dialog.";
 "Passwords Stay with macOS" = "Passwords Stay with macOS";
 "MacScope never displays its own password field and never reads administrator credentials." = "MacScope never displays its own password field and never reads administrator credentials.";
+"CPU · Last 1 Minute" = "CPU · Last 1 Minute";
+"Memory · Last 1 Minute" = "Memory · Last 1 Minute";
+"I/O · Last 1 Minute" = "I/O · Last 1 Minute";

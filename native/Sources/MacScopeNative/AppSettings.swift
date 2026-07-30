@@ -41,9 +41,9 @@ final class AppSettings: ObservableObject {
     static let refreshInterval = "native.refreshInterval"
     static let processLimit = "native.processLimit"
     static let processLimitDefault20Applied = "native.processLimitDefault20Applied"
+    static let refreshIntervalDefault2Applied = "native.refreshIntervalDefault2Applied"
     static let temperatureUnit = "native.temperatureUnit"
     static let themeID = "native.themeID"
-    static let customTheme = "native.customTheme"
     static let cacheCleanupMode = "native.cacheCleanupMode"
     static let largeFileThresholdMB = "native.largeFileThresholdMB"
     static let duplicateMinimumMB = "native.duplicateMinimumMB"
@@ -83,16 +83,6 @@ final class AppSettings: ObservableObject {
     didSet { defaults.set(themeID, forKey: Key.themeID) }
   }
 
-  @Published private(set) var customTheme: ThemePalette? {
-    didSet {
-      if let customTheme, let data = try? JSONEncoder().encode(customTheme) {
-        defaults.set(data, forKey: Key.customTheme)
-      } else {
-        defaults.removeObject(forKey: Key.customTheme)
-      }
-    }
-  }
-
   @Published var cacheCleanupMode: CacheCleanupMode {
     didSet { defaults.set(cacheCleanupMode.rawValue, forKey: Key.cacheCleanupMode) }
   }
@@ -113,12 +103,8 @@ final class AppSettings: ObservableObject {
     didSet { defaults.set(confirmsCleanup, forKey: Key.confirmsCleanup) }
   }
 
-  var availableThemes: [ThemePalette] {
-    ThemePalette.builtIns + (customTheme.map { [$0] } ?? [])
-  }
-
   var activeTheme: ThemePalette {
-    availableThemes.first(where: { $0.id == themeID }) ?? ThemePalette.system
+    ThemePalette.builtIns.first(where: { $0.id == themeID }) ?? ThemePalette.system
   }
 
   private let defaults: UserDefaults
@@ -137,7 +123,13 @@ final class AppSettings: ObservableObject {
     }
 
     let savedInterval = defaults.double(forKey: Key.refreshInterval)
-    refreshInterval = [0.5, 1, 2, 5].contains(savedInterval) ? savedInterval : 1
+    if !defaults.bool(forKey: Key.refreshIntervalDefault2Applied), savedInterval == 1 {
+      refreshInterval = 2
+      defaults.set(2, forKey: Key.refreshInterval)
+    } else {
+      refreshInterval = [0.5, 1, 2, 5].contains(savedInterval) ? savedInterval : 2
+    }
+    defaults.set(true, forKey: Key.refreshIntervalDefault2Applied)
     let savedLimit = defaults.integer(forKey: Key.processLimit)
     if !defaults.bool(forKey: Key.processLimitDefault20Applied), savedLimit == 5 {
       processLimit = 20
@@ -150,15 +142,9 @@ final class AppSettings: ObservableObject {
       TemperatureUnit(rawValue: defaults.string(forKey: Key.temperatureUnit) ?? "") ?? .celsius
 
     let savedThemeID = defaults.string(forKey: Key.themeID) ?? ThemePalette.system.id
-    if let data = defaults.data(forKey: Key.customTheme),
-      let theme = try? JSONDecoder().decode(ThemePalette.self, from: data),
-      theme.isValid
-    {
-      customTheme = theme
-    } else {
-      customTheme = nil
-    }
-    themeID = savedThemeID
+    themeID = ThemePalette.builtIns.contains(where: { $0.id == savedThemeID })
+      ? savedThemeID : ThemePalette.system.id
+    defaults.removeObject(forKey: "native.customTheme")
 
     cacheCleanupMode =
       CacheCleanupMode(rawValue: defaults.string(forKey: Key.cacheCleanupMode) ?? "") ?? .trash
@@ -178,29 +164,15 @@ final class AppSettings: ObservableObject {
       ? true : defaults.bool(forKey: Key.confirmsCleanup)
   }
 
-  func applyCustomTheme(_ theme: ThemePalette) {
-    guard theme.isValid else { return }
-    var imported = theme
-    imported.id = "custom"
-    imported.name = theme.name.isEmpty ? "Custom" : theme.name
-    customTheme = imported
-    themeID = imported.id
-  }
-
-  func resetTheme() {
-    customTheme = nil
-    themeID = ThemePalette.system.id
-  }
-
   func resetAll() {
     language = .english
     appearance = .system
     sidebarTransparencyEnabled = true
     sidebarTransparency = 0.7
-    refreshInterval = 1
+    refreshInterval = 2
     processLimit = 20
     temperatureUnit = .celsius
-    resetTheme()
+    themeID = ThemePalette.system.id
     cacheCleanupMode = .trash
     largeFileThresholdMB = 500
     duplicateMinimumMB = 10
