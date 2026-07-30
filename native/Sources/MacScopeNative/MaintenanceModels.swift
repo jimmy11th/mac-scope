@@ -142,6 +142,12 @@ enum ActivityPhase: Sendable {
   case cancelled
 }
 
+enum MaintenanceOperationKind: Sendable {
+  case scan
+  case cleanup
+  case memory
+}
+
 enum ActivityEntryState: Sendable {
   case pending
   case working
@@ -160,6 +166,7 @@ struct ActivityEntry: Identifiable, Sendable {
 struct MaintenanceActivity: Identifiable, Sendable {
   let id: UUID
   let tool: MaintenanceTool
+  let operation: MaintenanceOperationKind
   let title: String
   var phase: ActivityPhase
   var completed: Int

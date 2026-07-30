@@ -1,10 +1,15 @@
 import SwiftUI
 
-struct MaintenanceActivityView: View {
+struct MaintenanceActivityInlineView: View {
   @EnvironmentObject private var store: MaintenanceStore
   @EnvironmentObject private var settings: AppSettings
 
-  private var activity: MaintenanceActivity? { store.activity }
+  let tool: MaintenanceTool
+
+  private var activity: MaintenanceActivity? {
+    guard store.activity?.tool == tool else { return nil }
+    return store.activity
+  }
 
   private var issueCount: Int {
     guard let activity else { return 0 }
@@ -14,74 +19,99 @@ struct MaintenanceActivityView: View {
     )
   }
 
+  private var showsEntries: Bool {
+    guard let activity else { return false }
+    return !activity.entries.isEmpty
+      && (activity.operation == .cleanup || issueCount > 0)
+  }
+
   var body: some View {
-    VStack(spacing: 0) {
-      VStack(alignment: .leading, spacing: 12) {
-        HStack(spacing: 10) {
-          activityIcon
-          VStack(alignment: .leading, spacing: 2) {
-            Text(activity?.title ?? "System Tool")
-              .font(.headline)
-            Text(statusText)
-              .font(.subheadline)
-              .foregroundStyle(.secondary)
-          }
-          Spacer()
-        }
-
-        if let progress = activity?.progress, store.isBusy {
-          ProgressView(value: progress)
-        } else if activity?.phase == .scanning {
-          ProgressView()
-            .controlSize(.small)
-        }
-
-        if let currentPath = activity?.currentPath, !currentPath.isEmpty {
-          Text(currentPath)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .truncationMode(.middle)
-        }
-      }
-      .padding(20)
-
-      Divider()
-
-      if let entries = activity?.entries, !entries.isEmpty {
-        List(entries) { entry in
+    if let activity {
+      VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 10) {
           HStack(spacing: 10) {
-            entryStateView(entry.state)
-              .frame(width: 18)
-            VStack(alignment: .leading, spacing: 2) {
-              Text(LocalizedStringKey(entry.name))
-                .lineLimit(1)
-              Text(entry.path)
+            activityIcon(for: activity)
+              .frame(width: 20, height: 20)
+            VStack(alignment: .leading, spacing: 1) {
+              Text(activity.title)
+                .font(.subheadline.weight(.semibold))
+              Text(statusText(for: activity))
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-              if !entry.detail.isEmpty, entry.detail != entry.path {
-                Text(entry.detail)
-                  .font(.caption)
-                  .foregroundStyle(entry.state == .failed ? Color.red : Color.secondary)
-                  .lineLimit(2)
+            }
+            Spacer()
+            if store.isBusy {
+              Button {
+                store.cancelCurrentOperation()
+              } label: {
+                Label("Cancel", systemImage: "xmark")
+              }
+            } else {
+              Button {
+                store.dismissActivity()
+              } label: {
+                Image(systemName: "xmark")
+              }
+              .buttonStyle(.plain)
+              .help("Dismiss")
+            }
+          }
+
+          if store.isBusy {
+            if let progress = activity.progress {
+              ProgressView(value: progress)
+            } else {
+              ProgressView()
+                .controlSize(.small)
+            }
+          }
+
+          if shouldShowCurrentPath(for: activity) {
+            Text(activity.currentPath)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .lineLimit(1)
+              .truncationMode(.middle)
+          }
+
+          if store.needsFullDiskAccess || store.canRetryWithAdministrator {
+            HStack(spacing: 8) {
+              if store.needsFullDiskAccess {
+                Button(action: SystemPermission.openFullDiskAccessSettings) {
+                  Label("Open Full Disk Access", systemImage: "lock.open")
+                }
+              }
+              if store.canRetryWithAdministrator {
+                Button {
+                  store.retryWithAdministratorAuthorization()
+                } label: {
+                  Label("Authorize and Retry", systemImage: "person.badge.key")
+                }
               }
             }
           }
-          .padding(.vertical, 3)
         }
-      } else {
-        Spacer()
-        Image(systemName: store.isBusy ? "gearshape.2" : "checkmark.circle")
-          .font(.system(size: 34, weight: .light))
-          .foregroundStyle(.secondary)
-        Spacer()
-      }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
 
-      Divider()
-      HStack {
-        if let activity, activity.reclaimedBytes > 0 {
+        if showsEntries {
+          Divider()
+          ScrollView {
+            LazyVStack(spacing: 0) {
+              ForEach(activity.entries) { entry in
+                activityRow(entry)
+                if entry.id != activity.entries.last?.id {
+                  Divider()
+                    .padding(.leading, 42)
+                }
+              }
+            }
+          }
+          .frame(maxHeight: min(190, CGFloat(activity.entries.count) * 48))
+        }
+
+        if activity.reclaimedBytes > 0 {
+          Divider()
           Text(
             AppLocalization.string(
               "Handled %@",
@@ -89,58 +119,58 @@ struct MaintenanceActivityView: View {
               arguments: [DisplayFormat.bytes(activity.reclaimedBytes)]
             )
           )
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-        Spacer()
-        if store.needsFullDiskAccess {
-          Button("Open Full Disk Access", action: SystemPermission.openFullDiskAccessSettings)
-        }
-        if store.canRetryWithAdministrator {
-          Button("Authorize and Retry") {
-            store.retryWithAdministratorAuthorization()
-          }
-        }
-        if store.isBusy {
-          Button("Cancel", role: .cancel) {
-            store.cancelCurrentOperation()
-          }
-        } else {
-          Button("Done") {
-            store.dismissActivity()
-          }
-          .keyboardShortcut(.defaultAction)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .padding(.horizontal, 16)
+          .frame(height: 32)
         }
       }
-      .padding(12)
+      .background(Color(nsColor: .controlBackgroundColor))
+      .transition(.opacity)
     }
-    .frame(width: 680, height: 480)
-    .interactiveDismissDisabled(store.isBusy)
+  }
+
+  private func activityRow(_ entry: ActivityEntry) -> some View {
+    HStack(spacing: 10) {
+      entryStateView(entry.state)
+        .frame(width: 18)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(LocalizedStringKey(entry.name))
+          .lineLimit(1)
+        Text(entry.path)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+          .truncationMode(.middle)
+        if !entry.detail.isEmpty, entry.detail != entry.path {
+          Text(entry.detail)
+            .font(.caption)
+            .foregroundStyle(entry.state == .failed ? Color.red : Color.secondary)
+            .lineLimit(2)
+        }
+      }
+      Spacer(minLength: 0)
+    }
+    .padding(.horizontal, 16)
+    .padding(.vertical, 6)
   }
 
   @ViewBuilder
-  private var activityIcon: some View {
-    switch activity?.phase {
+  private func activityIcon(for activity: MaintenanceActivity) -> some View {
+    switch activity.phase {
     case .scanning, .working:
       ProgressView()
         .controlSize(.small)
-        .frame(width: 22, height: 22)
     case .completed:
-      Image(systemName: issueCount > 0 ? "exclamationmark.circle" : "checkmark.circle.fill")
+      Image(systemName: issueCount > 0 ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
         .foregroundStyle(issueCount > 0 ? Color.orange : Color.green)
-        .font(.title2)
     case .cancelled:
       Image(systemName: "xmark.circle")
         .foregroundStyle(.secondary)
-        .font(.title2)
-    case .none:
-      Image(systemName: "gearshape")
-        .font(.title2)
     }
   }
 
-  private var statusText: String {
-    guard let activity else { return "" }
+  private func statusText(for activity: MaintenanceActivity) -> String {
     switch activity.phase {
     case .scanning:
       return activity.completed > 0
@@ -158,6 +188,23 @@ struct MaintenanceActivityView: View {
         : localized("%lld items need attention", Int64(issueCount))
     case .cancelled:
       return localized("Cancelled")
+    }
+  }
+
+  private func shouldShowCurrentPath(for activity: MaintenanceActivity) -> Bool {
+    guard !activity.currentPath.isEmpty else { return false }
+    switch activity.phase {
+    case .scanning, .working:
+      return true
+    case .completed:
+      switch activity.operation {
+      case .scan, .memory:
+        return true
+      case .cleanup:
+        return false
+      }
+    case .cancelled:
+      return false
     }
   }
 

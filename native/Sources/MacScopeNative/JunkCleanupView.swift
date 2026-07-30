@@ -31,7 +31,14 @@ struct JunkCleanupView: View {
       }
       Divider()
 
-      if store.junkItems.isEmpty {
+      if store.activity?.tool == .junk {
+        MaintenanceActivityInlineView(tool: .junk)
+        Divider()
+      }
+
+      if store.junkItems.isEmpty, store.activity?.tool == .junk, store.isBusy {
+        Spacer()
+      } else if store.junkItems.isEmpty {
         SystemToolEmptyView(
           systemImage: store.scannedTools.contains(.junk) ? "checkmark.circle" : "trash",
           title: store.scannedTools.contains(.junk) ? "No Junk Found" : "Ready to Scan",
@@ -43,6 +50,7 @@ struct JunkCleanupView: View {
             Label("Scan for Junk", systemImage: "magnifyingglass")
           }
           .buttonStyle(.borderedProminent)
+          .disabled(store.isBusy)
         }
       } else {
         selectionBar

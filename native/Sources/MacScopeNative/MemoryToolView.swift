@@ -20,6 +20,11 @@ struct MemoryToolView: View {
       }
       Divider()
 
+      if store.activity?.tool == .memory {
+        MaintenanceActivityInlineView(tool: .memory)
+        Divider()
+      }
+
       ScrollView {
         VStack(spacing: 28) {
           memoryGauge
@@ -36,13 +41,6 @@ struct MemoryToolView: View {
               .frame(maxWidth: 480)
           }
 
-          if !store.memoryMessage.isEmpty {
-            Label(store.memoryMessage, systemImage: "info.circle")
-              .font(.subheadline)
-              .foregroundStyle(.secondary)
-              .multilineTextAlignment(.center)
-              .frame(maxWidth: 540)
-          }
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 28)

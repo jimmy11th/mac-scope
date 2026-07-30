@@ -14,6 +14,7 @@
 "Reset all settings?" = "还原所有设置？";
 "Reset" = "还原";
 "Cancel" = "取消";
+"Dismiss" = "关闭";
 "Monitoring, appearance, and cleanup preferences will return to their defaults." = "监控、外观和清理偏好将恢复为默认值。";
 "Settings could not be updated" = "无法更新设置";
 "OK" = "好";

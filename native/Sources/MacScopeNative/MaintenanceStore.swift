@@ -152,6 +152,7 @@ final class MaintenanceStore: ObservableObject {
     activity = MaintenanceActivity(
       id: UUID(),
       tool: .memory,
+      operation: .memory,
       title: l("Releasing File Cache"),
       phase: .working,
       completed: 0,
@@ -259,6 +260,7 @@ final class MaintenanceStore: ObservableObject {
     activity = MaintenanceActivity(
       id: UUID(),
       tool: tool,
+      operation: .scan,
       title: title,
       phase: .scanning,
       completed: 0,
@@ -278,6 +280,10 @@ final class MaintenanceStore: ObservableObject {
         apply(result)
         scannedTools.insert(tool)
         errorsByTool[tool] = result.errors
+        if result.errors.isEmpty {
+          activity = nil
+          return
+        }
         activity?.phase = .completed
         activity?.completed = result.scannedCount
         activity?.currentPath = l("Found %lld items", Int64(result.values.count))
@@ -340,6 +346,7 @@ final class MaintenanceStore: ObservableObject {
     activity = MaintenanceActivity(
       id: UUID(),
       tool: request.tool,
+      operation: .cleanup,
       title: authorize ? l("Authorizing Cleanup") : request.title,
       phase: .working,
       completed: 0,

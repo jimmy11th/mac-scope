@@ -37,7 +37,14 @@ struct FileCleanupView: View {
       }
       Divider()
 
-      if items.isEmpty {
+      if store.activity?.tool == tool {
+        MaintenanceActivityInlineView(tool: tool)
+        Divider()
+      }
+
+      if items.isEmpty, store.activity?.tool == tool, store.isBusy {
+        Spacer()
+      } else if items.isEmpty {
         emptyState
       } else {
         selectionBar
@@ -95,6 +102,7 @@ struct FileCleanupView: View {
         Label(isDuplicateMode ? "Find Duplicates" : "Find Large Files", systemImage: "magnifyingglass")
       }
       .buttonStyle(.borderedProminent)
+      .disabled(store.isBusy)
     }
   }
 

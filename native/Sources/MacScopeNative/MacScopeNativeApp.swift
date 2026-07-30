@@ -16,6 +16,10 @@ struct MacScopeNativeApp: App {
         .preferredColorScheme(settings.appearance.colorScheme)
         .tint(settings.activeTheme.accentColor)
         .frame(minWidth: 1_020, minHeight: 620)
+        .background {
+          MainWindowConfigurationView()
+            .allowsHitTesting(false)
+        }
         .onAppear {
           maintenance.updateLanguage(settings.language)
           monitor.refreshInterval = settings.refreshInterval

@@ -44,7 +44,14 @@ struct ApplicationsToolView: View {
       }
       Divider()
 
-      if store.applications.isEmpty {
+      if store.activity?.tool == .applications {
+        MaintenanceActivityInlineView(tool: .applications)
+        Divider()
+      }
+
+      if store.applications.isEmpty, store.activity?.tool == .applications, store.isBusy {
+        Spacer()
+      } else if store.applications.isEmpty {
         SystemToolEmptyView(
           systemImage: store.scannedTools.contains(.applications) ? "checkmark.circle" : "app.dashed",
           title: store.scannedTools.contains(.applications) ? "No Applications Found" : "Ready to Scan",
@@ -56,6 +63,7 @@ struct ApplicationsToolView: View {
             Label("Scan Applications", systemImage: "magnifyingglass")
           }
           .buttonStyle(.borderedProminent)
+          .disabled(store.isBusy)
         }
       } else {
         applicationTable

@@ -35,7 +35,6 @@ private enum SidebarDestination: String, CaseIterable, Identifiable {
 }
 
 struct MacScopeRootView: View {
-  @EnvironmentObject private var maintenance: MaintenanceStore
   @AppStorage("native.sidebarDestination") private var destinationRaw =
     SidebarDestination.overview.rawValue
 
@@ -84,27 +83,39 @@ struct MacScopeRootView: View {
     }
     .toolbar {
       ToolbarItem(placement: .primaryAction) {
-        Button {
-          NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        } label: {
-          Label("Settings", systemImage: "gearshape")
+        if #available(macOS 14.0, *) {
+          SettingsLink {
+            Label("Settings", systemImage: "gearshape")
+          }
+          .help("Settings")
+        } else {
+          Button(action: openSettings) {
+            Label("Settings", systemImage: "gearshape")
+          }
+          .help("Settings")
         }
-        .help("Settings")
       }
-    }
-    .sheet(
-      isPresented: Binding(
-        get: { maintenance.activity != nil },
-        set: { if !$0 { maintenance.dismissActivity() } }
-      )
-    ) {
-      MaintenanceActivityView()
-        .environmentObject(maintenance)
     }
   }
 
   private func sidebarRow(_ item: SidebarDestination) -> some View {
     Label(item.title, systemImage: item.systemImage)
       .tag(item)
+  }
+
+  private func openSettings() {
+    NSApp.activate(ignoringOtherApps: true)
+    let didOpen = NSApp.sendAction(
+      Selector(("showSettingsWindow:")),
+      to: nil,
+      from: nil
+    )
+    if !didOpen {
+      NSApp.sendAction(
+        Selector(("showPreferencesWindow:")),
+        to: nil,
+        from: nil
+      )
+    }
   }
 }
