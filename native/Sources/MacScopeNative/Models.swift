@@ -90,6 +90,19 @@ struct ProcessHistoryPoint: Identifiable, Sendable {
   var id: Date { timestamp }
 }
 
+struct SystemHistoryPoint: Identifiable, Sendable {
+  let timestamp: Date
+  let cpuPercent: Double
+  let memoryPercent: Double
+  let diskReadRate: Double
+  let diskWriteRate: Double
+  let networkDownloadRate: Double
+  let networkUploadRate: Double
+  let temperatureCelsius: Double?
+
+  var id: Date { timestamp }
+}
+
 struct SystemSnapshot: Sendable {
   var timestamp: Date
   var cpu: CPUUsage

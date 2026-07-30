@@ -1,60 +1,74 @@
 import SwiftUI
 
 @main
+@MainActor
 struct MacScopeNativeApp: App {
-  @StateObject private var monitor = SystemMonitor()
-  @StateObject private var settings = AppSettings()
-  @StateObject private var maintenance = MaintenanceStore()
+  @StateObject private var runtime = AppRuntime()
 
   var body: some Scene {
-    WindowGroup("MacScope") {
-      MacScopeRootView(monitor: monitor)
-        .environmentObject(monitor)
-        .environmentObject(monitor.metrics)
-        .environmentObject(settings)
-        .environmentObject(maintenance)
-        .environment(\.locale, settings.language.locale)
-        .preferredColorScheme(settings.appearance.colorScheme)
-        .tint(settings.activeTheme.accentColor)
+    Window("MacScope", id: "main") {
+      MacScopeRootView()
+        .environmentObject(runtime.monitor)
+        .environmentObject(runtime.monitor.metrics)
+        .environmentObject(runtime.settings)
+        .environmentObject(runtime.maintenance)
+        .environmentObject(runtime.navigation)
+        .environment(\.locale, runtime.settings.language.locale)
+        .preferredColorScheme(runtime.settings.appearance.colorScheme)
+        .tint(runtime.settings.activeTheme.accentColor)
         .frame(minWidth: 1_020, minHeight: 620)
         .background {
           MainWindowConfigurationView()
             .allowsHitTesting(false)
         }
-        .onAppear {
-          AppIconController.apply(settings.appIconStyle)
-          maintenance.updateLanguage(settings.language)
-          monitor.updateRefreshInterval(settings.refreshInterval)
-          monitor.start()
-        }
-        .onChange(of: settings.language) { language in
-          maintenance.updateLanguage(language)
-        }
-        .onChange(of: settings.refreshInterval) { interval in
-          monitor.updateRefreshInterval(interval)
-        }
     }
     .defaultSize(width: 1_320, height: 800)
     .windowStyle(.titleBar)
     .commands {
-      MacScopeCommands(language: settings.language)
+      MacScopeCommands(language: runtime.settings.language)
     }
 
     Settings {
       SettingsView()
-        .environmentObject(settings)
-        .environment(\.locale, settings.language.locale)
-        .preferredColorScheme(settings.appearance.colorScheme)
-        .tint(settings.activeTheme.accentColor)
-        .frame(width: 660, height: 520)
+        .environmentObject(runtime.settings)
+        .environmentObject(runtime.monitor.metrics)
+        .environment(\.locale, runtime.settings.language.locale)
+        .preferredColorScheme(runtime.settings.appearance.colorScheme)
+        .tint(runtime.settings.activeTheme.accentColor)
+        .frame(width: 700, height: 560)
     }
+
+    MenuBarExtra(
+      isInserted: Binding(
+        get: { runtime.settings.menuBarEnabled },
+        set: { isEnabled in
+          guard runtime.settings.menuBarEnabled != isEnabled else { return }
+          runtime.settings.menuBarEnabled = isEnabled
+        }
+      )
+    ) {
+      MenuBarDashboardView()
+        .environmentObject(runtime.monitor)
+        .environmentObject(runtime.monitor.metrics)
+        .environmentObject(runtime.settings)
+        .environmentObject(runtime.navigation)
+        .environment(\.locale, runtime.settings.language.locale)
+        .preferredColorScheme(runtime.settings.appearance.colorScheme)
+        .tint(runtime.settings.activeTheme.accentColor)
+    } label: {
+      MenuBarStatusLabel()
+        .environmentObject(runtime.monitor.metrics)
+        .environmentObject(runtime.settings)
+        .environment(\.locale, runtime.settings.language.locale)
+    }
+    .menuBarExtraStyle(.window)
 
     Window("MacScope Help", id: "help") {
       HelpView()
-        .environmentObject(settings)
-        .environment(\.locale, settings.language.locale)
-        .preferredColorScheme(settings.appearance.colorScheme)
-        .tint(settings.activeTheme.accentColor)
+        .environmentObject(runtime.settings)
+        .environment(\.locale, runtime.settings.language.locale)
+        .preferredColorScheme(runtime.settings.appearance.colorScheme)
+        .tint(runtime.settings.activeTheme.accentColor)
         .frame(minWidth: 680, minHeight: 480)
     }
     .defaultSize(width: 780, height: 560)
