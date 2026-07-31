@@ -344,23 +344,32 @@ actor MaintenanceService {
           && (item.kind == .cache || item.kind == .developer)
         if permanentlyDelete {
           try fileManager.removeItem(at: item.url)
-        } else {
-          do {
-            try fileManager.trashItem(at: item.url, resultingItemURL: nil)
-          } catch {
-            if authorize, item.kind == .application,
-              item.url.standardizedFileURL.path.hasPrefix("/Applications/")
-            {
-              switch SystemPermission.moveToTrashWithAdministratorAuthorization(item.url) {
-              case .success:
-                break
-              case .failure(let authorizationError):
-                throw authorizationError
-              }
-            } else {
-              throw error
-            }
+        } else if authorize, item.kind == .application,
+          item.url.standardizedFileURL.path.hasPrefix("/Applications/")
+        {
+          switch SystemPermission.moveToTrashWithAdministratorAuthorization(item.url) {
+          case .success:
+            break
+          case .cancelled:
+            await progress(
+              CleanupProgress(
+                completed: offset,
+                total: ordered.count,
+                item: item,
+                state: .failed,
+                detail: "Cancelled"
+              ))
+            return CleanupResult(
+              completed: completedItems,
+              failures: failures,
+              reclaimedBytes: handledBytes,
+              authorizationCancelled: true
+            )
+          case .failure(let message):
+            throw MaintenanceServiceError.administratorAuthorizationFailed(message)
           }
+        } else {
+          try fileManager.trashItem(at: item.url, resultingItemURL: nil)
         }
         if item.kind == .application {
           SystemPermission.unregisterApplication(at: item.url)
@@ -391,38 +400,20 @@ actor MaintenanceService {
     return CleanupResult(
       completed: completedItems,
       failures: failures,
-      reclaimedBytes: handledBytes
+      reclaimedBytes: handledBytes,
+      authorizationCancelled: false
     )
   }
 
-  func releaseMemory(authorize: Bool) -> MemoryReleaseResult {
+  func releaseMemory() -> MemoryReleaseResult {
     guard fileManager.isExecutableFile(atPath: "/usr/bin/purge") else {
       return .failure("The purge utility is unavailable on this version of macOS.")
     }
-    if authorize {
-      switch SystemPermission.purgeFileCacheWithAdministratorAuthorization() {
-      case .success: return .success
-      case .failure(let error): return .failure(error.localizedDescription)
-      }
+    switch SystemPermission.purgeFileCacheWithAdministratorAuthorization() {
+    case .success: return .success
+    case .cancelled: return .cancelled
+    case .failure(let message): return .failure(message)
     }
-
-    let process = Process()
-    let error = Pipe()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/purge")
-    process.standardOutput = FileHandle.nullDevice
-    process.standardError = error
-    do {
-      try process.run()
-    } catch {
-      return .failure(error.localizedDescription)
-    }
-    let errorData = error.fileHandleForReading.readDataToEndOfFile()
-    process.waitUntilExit()
-    if process.terminationStatus == 0 { return .success }
-    let message =
-      String(data: errorData, encoding: .utf8)?
-      .trimmingCharacters(in: .whitespacesAndNewlines) ?? "Administrator authorization is required."
-    return .authorizationRequired(message)
   }
 
   private func residueItems(bundleID: String, parentID: String) async throws
@@ -633,6 +624,7 @@ private enum MaintenanceServiceError: LocalizedError {
   case changed
   case outsideScope
   case running
+  case administratorAuthorizationFailed(String)
 
   var errorDescription: String? {
     switch self {
@@ -640,6 +632,7 @@ private enum MaintenanceServiceError: LocalizedError {
     case .changed: "The item changed after it was scanned. Scan again before removing it."
     case .outsideScope: "The item is outside the allowed cleanup folders."
     case .running: "Quit the application before uninstalling it."
+    case .administratorAuthorizationFailed(let message): message
     }
   }
 
@@ -649,6 +642,7 @@ private enum MaintenanceServiceError: LocalizedError {
     case .changed: .changed
     case .outsideScope: .outsideScope
     case .running: .running
+    case .administratorAuthorizationFailed: .administratorRequired
     }
   }
 }

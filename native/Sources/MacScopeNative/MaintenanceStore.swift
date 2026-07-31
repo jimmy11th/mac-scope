@@ -12,28 +12,15 @@ final class MaintenanceStore: ObservableObject {
   @Published private(set) var scannedTools: Set<MaintenanceTool> = []
   @Published var activity: MaintenanceActivity?
   @Published private(set) var memoryMessage = ""
-  @Published private(set) var memoryNeedsAuthorization = false
 
   private let service = MaintenanceService()
   private var operationTask: Task<Void, Never>?
-  private var lastOperation: LastOperation?
   private var language = AppLanguage.english
   private var lastScanProgressUpdate = -TimeInterval.infinity
 
   var isBusy: Bool {
     guard let phase = activity?.phase else { return false }
     return phase == .scanning || phase == .working
-  }
-
-  var canRetryWithAdministrator: Bool {
-    switch lastOperation {
-    case .cleanup:
-      activity?.failures.contains(where: { $0.kind == .administratorRequired }) == true
-    case .memory:
-      memoryNeedsAuthorization
-    case .none:
-      false
-    }
   }
 
   var needsFullDiskAccess: Bool {
@@ -132,6 +119,13 @@ final class MaintenanceStore: ObservableObject {
     let candidates = [record.application] + record.otherCopies + record.residues
     let items = candidates.filter { selectedIDs.contains($0.id) }
     let home = FileManager.default.homeDirectoryForCurrentUser
+    let requiresAdministrator = items.contains { item in
+      item.kind == .application
+        && item.url.standardizedFileURL.path.hasPrefix("/Applications/")
+    }
+    if requiresAdministrator {
+      NSApp.activate(ignoringOtherApps: true)
+    }
     beginCleanup(
       tool: .applications,
       title: l("Uninstalling %@", record.application.name),
@@ -141,15 +135,15 @@ final class MaintenanceStore: ObservableObject {
         URL(fileURLWithPath: "/Applications", isDirectory: true),
         home.appendingPathComponent("Applications", isDirectory: true),
         home.appendingPathComponent("Library", isDirectory: true),
-      ]
+      ],
+      authorize: requiresAdministrator
     )
   }
 
-  func releaseMemory(authorize: Bool = false) {
+  func releaseMemory() {
     cancelCurrentOperation()
+    NSApp.activate(ignoringOtherApps: true)
     memoryMessage = ""
-    memoryNeedsAuthorization = false
-    lastOperation = .memory
     activity = MaintenanceActivity(
       id: UUID(),
       tool: .memory,
@@ -165,23 +159,20 @@ final class MaintenanceStore: ObservableObject {
     )
     operationTask = Task { [weak self, service] in
       guard let self else { return }
-      let result = await service.releaseMemory(authorize: authorize)
+      let result = await service.releaseMemory()
       guard !Task.isCancelled else { return }
       switch result {
       case .success:
-        memoryNeedsAuthorization = false
         memoryMessage = l("macOS released eligible inactive file cache.")
         activity?.phase = .completed
         activity?.completed = 1
         activity?.currentPath = memoryMessage
-      case .authorizationRequired(let message):
-        memoryNeedsAuthorization = true
-        memoryMessage = message
-        activity?.phase = .completed
-        activity?.completed = 1
-        activity?.currentPath = l("Administrator authorization is required.")
+      case .cancelled:
+        memoryMessage = l("Cancelled")
+        activity?.phase = .cancelled
+        activity?.completed = 0
+        activity?.currentPath = memoryMessage
       case .failure(let message):
-        memoryNeedsAuthorization = false
         memoryMessage = message
         activity?.phase = .completed
         activity?.completed = 1
@@ -218,23 +209,6 @@ final class MaintenanceStore: ObservableObject {
     }
   }
 
-  func retryWithAdministratorAuthorization() {
-    switch lastOperation {
-    case .cleanup(let request):
-      let failedIDs = Set(
-        activity?.failures.filter {
-          $0.kind == .administratorRequired
-        }.map { $0.item.id } ?? [])
-      let retryItems = request.items.filter { failedIDs.contains($0.id) }
-      guard !retryItems.isEmpty else { return }
-      runCleanup(request.replacing(items: retryItems), authorize: true)
-    case .memory:
-      releaseMemory(authorize: true)
-    case .none:
-      break
-    }
-  }
-
   func cancelCurrentOperation() {
     operationTask?.cancel()
     operationTask = nil
@@ -257,7 +231,6 @@ final class MaintenanceStore: ObservableObject {
     apply: @escaping @MainActor (ScanResult<Value>) -> Void
   ) {
     cancelCurrentOperation()
-    lastOperation = nil
     lastScanProgressUpdate = -TimeInterval.infinity
     activity = MaintenanceActivity(
       id: UUID(),
@@ -334,7 +307,8 @@ final class MaintenanceStore: ObservableObject {
     title: String,
     items: [MaintenanceItem],
     cacheMode: CacheCleanupMode,
-    roots: [URL]
+    roots: [URL],
+    authorize: Bool = false
   ) {
     guard !items.isEmpty else { return }
     let request = CleanupRequest(
@@ -344,8 +318,7 @@ final class MaintenanceStore: ObservableObject {
       cacheMode: cacheMode,
       roots: roots
     )
-    lastOperation = .cleanup(request)
-    runCleanup(request, authorize: false)
+    runCleanup(request, authorize: authorize)
   }
 
   private func runCleanup(_ request: CleanupRequest, authorize: Bool) {
@@ -382,12 +355,17 @@ final class MaintenanceStore: ObservableObject {
         await self?.updateCleanupProgress(progress)
       }
       guard !Task.isCancelled else { return }
-      activity?.phase = .completed
-      activity?.completed = request.items.count
-      activity?.currentPath =
-        result.failures.isEmpty
-        ? l("Completed %lld items", Int64(result.completed.count))
-        : l("Completed with %lld issues", Int64(result.failures.count))
+      activity?.phase = result.authorizationCancelled ? .cancelled : .completed
+      activity?.completed = result.authorizationCancelled
+        ? result.completed.count : request.items.count
+      if result.authorizationCancelled {
+        activity?.currentPath = l("Cancelled")
+      } else {
+        activity?.currentPath =
+          result.failures.isEmpty
+          ? l("Completed %lld items", Int64(result.completed.count))
+          : l("Completed with %lld issues", Int64(result.failures.count))
+      }
       activity?.reclaimedBytes = result.reclaimedBytes
       activity?.failures = result.failures
       removeCompleted(result.completed, from: request.tool)
@@ -458,12 +436,4 @@ private struct CleanupRequest {
   let cacheMode: CacheCleanupMode
   let roots: [URL]
 
-  func replacing(items: [MaintenanceItem]) -> CleanupRequest {
-    CleanupRequest(tool: tool, title: title, items: items, cacheMode: cacheMode, roots: roots)
-  }
-}
-
-private enum LastOperation {
-  case cleanup(CleanupRequest)
-  case memory
 }

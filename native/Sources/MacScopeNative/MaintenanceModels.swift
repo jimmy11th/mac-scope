@@ -125,6 +125,7 @@ struct CleanupResult: Sendable {
   let completed: [MaintenanceItem]
   let failures: [MaintenanceFailure]
   let reclaimedBytes: UInt64
+  let authorizationCancelled: Bool
 }
 
 struct CleanupProgress: Sendable {
@@ -183,6 +184,6 @@ struct MaintenanceActivity: Identifiable, Sendable {
 
 enum MemoryReleaseResult: Sendable {
   case success
-  case authorizationRequired(String)
+  case cancelled
   case failure(String)
 }

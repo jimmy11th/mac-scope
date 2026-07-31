@@ -20,7 +20,8 @@ let package = Package(
     .executableTarget(
       name: "MacScopeNative",
       linkerSettings: [
-        .linkedFramework("IOKit")
+        .linkedFramework("IOKit"),
+        .linkedFramework("ServiceManagement"),
       ]
     ),
     .testTarget(

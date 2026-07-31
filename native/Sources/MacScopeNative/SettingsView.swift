@@ -6,6 +6,7 @@ struct SettingsView: View {
   @EnvironmentObject private var metrics: SystemMetricsStore
   @Environment(\.openWindow) private var openWindow
 
+  @StateObject private var permissionManager = PermissionManager()
   @AppStorage("native.settingsTab") private var selectedTab = "general"
   @State private var selectedScanFolder: String?
   @State private var confirmsReset = false
@@ -25,6 +26,9 @@ struct SettingsView: View {
         cleanupSettings
           .tabItem { Label("Cleanup", systemImage: "trash") }
           .tag("cleanup")
+        permissionSettings
+          .tabItem { Label("Permission Management", systemImage: "lock.shield") }
+          .tag("permissions")
         aboutSettings
           .tabItem { Label("About", systemImage: "info.circle") }
           .tag("about")
@@ -290,14 +294,136 @@ struct SettingsView: View {
         }
       }
 
-      Section("Permissions") {
-        LabeledContent("Full Disk Access") {
-          Button("Open System Settings", action: SystemPermission.openFullDiskAccessSettings)
+    }
+    .formStyle(.grouped)
+    .padding(8)
+  }
+
+  private var permissionSettings: some View {
+    Form {
+      Section("Startup") {
+        Toggle(
+          "Launch MacScope at Login",
+          isOn: Binding(
+            get: { permissionManager.launchesAtLogin },
+            set: { permissionManager.setLaunchesAtLogin($0) }
+          )
+        )
+        .disabled(permissionManager.isUpdatingLoginItem || permissionManager.loginItemState == .unavailable)
+
+        LabeledContent("Status") {
+          Label(
+            LocalizedStringKey(loginItemStatusTitle),
+            systemImage: loginItemStatusImage
+          )
+          .foregroundStyle(loginItemStatusColor)
+        }
+
+        if permissionManager.loginItemState == .requiresApproval {
+          Button(action: permissionManager.openLoginItemsSettings) {
+            Label("Open Login Items", systemImage: "arrow.up.forward.app")
+          }
+        }
+
+        if permissionManager.loginItemState == .unavailable {
+          Text("Install MacScope in Applications to manage login startup.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+
+        if let error = permissionManager.loginItemError {
+          Text(error)
+            .font(.caption)
+            .foregroundStyle(.red)
+        }
+      }
+
+      Section("Full Disk Access") {
+        VStack(alignment: .leading, spacing: 10) {
+          Text("Allow MacScope to scan protected cleanup files and application leftovers.")
+            .foregroundStyle(.secondary)
+
+          VStack(alignment: .leading, spacing: 6) {
+            permissionInstruction(1, "Open Full Disk Access settings.")
+            permissionInstruction(2, "Turn on the switch next to MacScope.")
+            permissionInstruction(
+              3,
+              "If the switch is already on, remove MacScope with the minus button, then add /Applications/MacScope.app again with the plus button."
+            )
+            permissionInstruction(4, "Quit and reopen MacScope.")
+          }
+
+          Button(action: SystemPermission.openFullDiskAccessSettings) {
+            Label("Open Full Disk Access Settings", systemImage: "arrow.up.forward.app")
+          }
+          .buttonStyle(.borderedProminent)
+        }
+      }
+
+      Section("On-Demand Authorization") {
+        HStack(spacing: 10) {
+          Image(systemName: "person.badge.key")
+            .foregroundStyle(.secondary)
+            .frame(width: 22)
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Administrator Authorization")
+            Text(
+              "MacScope requests the standard macOS administrator dialog immediately before a protected operation."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+          }
+          Spacer(minLength: 12)
+          Text("Requested When Needed")
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
       }
     }
     .formStyle(.grouped)
     .padding(8)
+    .onAppear(perform: permissionManager.refresh)
+    .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) {
+      _ in permissionManager.refresh()
+    }
+  }
+
+  private func permissionInstruction(_ number: Int, _ text: LocalizedStringKey) -> some View {
+    HStack(alignment: .firstTextBaseline, spacing: 8) {
+      Text(String(number))
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.secondary)
+        .frame(width: 16, alignment: .trailing)
+      Text(text)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+  }
+
+  private var loginItemStatusTitle: String {
+    switch permissionManager.loginItemState {
+    case .disabled: "Disabled"
+    case .enabled: "Enabled"
+    case .requiresApproval: "Requires Approval"
+    case .unavailable: "Unavailable"
+    }
+  }
+
+  private var loginItemStatusImage: String {
+    switch permissionManager.loginItemState {
+    case .disabled: "circle"
+    case .enabled: "checkmark.circle.fill"
+    case .requiresApproval: "exclamationmark.circle.fill"
+    case .unavailable: "xmark.circle.fill"
+    }
+  }
+
+  private var loginItemStatusColor: Color {
+    switch permissionManager.loginItemState {
+    case .disabled: .secondary
+    case .enabled: .green
+    case .requiresApproval: .orange
+    case .unavailable: .red
+    }
   }
 
   private var aboutSettings: some View {

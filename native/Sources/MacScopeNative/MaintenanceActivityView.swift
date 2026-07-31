@@ -71,20 +71,9 @@ struct MaintenanceActivityInlineView: View {
               .truncationMode(.middle)
           }
 
-          if store.needsFullDiskAccess || store.canRetryWithAdministrator {
-            HStack(spacing: 8) {
-              if store.needsFullDiskAccess {
-                Button(action: SystemPermission.openFullDiskAccessSettings) {
-                  Label("Open Full Disk Access", systemImage: "lock.open")
-                }
-              }
-              if store.canRetryWithAdministrator {
-                Button {
-                  store.retryWithAdministratorAuthorization()
-                } label: {
-                  Label("Authorize and Retry", systemImage: "person.badge.key")
-                }
-              }
+          if store.needsFullDiskAccess {
+            Button(action: SystemPermission.openFullDiskAccessSettings) {
+              Label("Open Full Disk Access", systemImage: "lock.open")
             }
           }
         }

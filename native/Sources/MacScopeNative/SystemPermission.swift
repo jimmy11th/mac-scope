@@ -1,6 +1,12 @@
 import AppKit
 import Foundation
 
+enum AdministratorAuthorizationResult: Sendable {
+  case success
+  case cancelled
+  case failure(String)
+}
+
 enum SystemPermission {
   @MainActor
   static func openFullDiskAccessSettings() {
@@ -12,7 +18,9 @@ enum SystemPermission {
     NSWorkspace.shared.open(url)
   }
 
-  static func moveToTrashWithAdministratorAuthorization(_ source: URL) -> Result<Void, Error> {
+  static func moveToTrashWithAdministratorAuthorization(
+    _ source: URL
+  ) -> AdministratorAuthorizationResult {
     let fileManager = FileManager.default
     let trash = fileManager.homeDirectoryForCurrentUser.appendingPathComponent(
       ".Trash",
@@ -37,19 +45,15 @@ enum SystemPermission {
       "end run",
     ]
     let result = runAppleScript(script, arguments: [source.path, destination.path])
-    return result.status == 0
-      ? .success(())
-      : .failure(PermissionError.operationFailed(result.message))
+    return authorizationResult(for: result)
   }
 
-  static func purgeFileCacheWithAdministratorAuthorization() -> Result<Void, Error> {
+  static func purgeFileCacheWithAdministratorAuthorization() -> AdministratorAuthorizationResult {
     let script = [
       "do shell script \"/usr/bin/purge\" with administrator privileges"
     ]
     let result = runAppleScript(script, arguments: [])
-    return result.status == 0
-      ? .success(())
-      : .failure(PermissionError.operationFailed(result.message))
+    return authorizationResult(for: result)
   }
 
   static func unregisterApplication(at url: URL) {
@@ -92,15 +96,20 @@ enum SystemPermission {
       .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     return (process.terminationStatus, message)
   }
-}
 
-private enum PermissionError: LocalizedError {
-  case operationFailed(String)
-
-  var errorDescription: String? {
-    switch self {
-    case .operationFailed(let message):
-      message.isEmpty ? "The authorized operation did not complete." : message
+  private static func authorizationResult(
+    for result: (status: Int32, message: String)
+  ) -> AdministratorAuthorizationResult {
+    guard result.status != 0 else { return .success }
+    let normalizedMessage = result.message.lowercased()
+    if normalizedMessage.contains("(-128)")
+      || normalizedMessage.contains("user canceled")
+      || normalizedMessage.contains("user cancelled")
+    {
+      return .cancelled
     }
+    return .failure(
+      result.message.isEmpty ? "The authorized operation did not complete." : result.message
+    )
   }
 }
