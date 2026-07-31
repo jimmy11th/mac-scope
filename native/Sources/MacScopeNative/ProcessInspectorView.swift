@@ -182,6 +182,13 @@ struct ProcessInspectorView: View {
 
   private var generalSection: some View {
     InspectorSection(title: "General") {
+      LabeledContent("Software", value: process.software.name)
+      LabeledContent("Source") {
+        Text(originTitle)
+      }
+      if let bundleIdentifier = process.software.bundleIdentifier {
+        LabeledContent("Bundle Identifier", value: bundleIdentifier)
+      }
       LabeledContent("State", value: DisplayFormat.processState(process.state))
       LabeledContent("Parent PID", value: String(process.parentPID))
       LabeledContent("Threads", value: String(process.threadCount))
@@ -202,6 +209,9 @@ struct ProcessInspectorView: View {
   }
 
   private var processIcon: NSImage {
+    if let bundleURL = process.software.bundleURL {
+      return NSWorkspace.shared.icon(forFile: bundleURL.path)
+    }
     let iconPath: String
     if let appRange = process.executablePath.range(of: ".app/", options: .caseInsensitive) {
       iconPath = String(
@@ -216,6 +226,15 @@ struct ProcessInspectorView: View {
       ) ?? NSImage()
     }
     return NSWorkspace.shared.icon(forFile: iconPath)
+  }
+
+  private var originTitle: LocalizedStringKey {
+    switch process.software.origin {
+    case .macOSSystem: "System Software or Services"
+    case .installedSoftware: "Installed Software"
+    case .userTool: "Plug-ins or Tools"
+    case .unknown: "Other"
+    }
   }
 }
 

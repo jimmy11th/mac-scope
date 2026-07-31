@@ -38,6 +38,7 @@ actor SystemSampler {
   private var previousProcessDisk: [Int32: ByteCounters] = [:]
   private var previousProcessNetwork: [Int32: ByteCounters] = [:]
   private var cachedProcessPaths: [Int32: (command: String, path: String)] = [:]
+  private var processClassifier = ProcessClassifier()
   private var previousTime = ProcessInfo.processInfo.systemUptime
   private var previousProcessTime = ProcessInfo.processInfo.systemUptime
   private var temperature = TemperatureUsage.unavailable
@@ -312,6 +313,10 @@ actor SystemSampler {
       }
       currentPaths[pid] = (command, executablePath)
       let filename = URL(fileURLWithPath: executablePath).lastPathComponent
+      let software = processClassifier.software(
+        executablePath: executablePath,
+        command: command
+      )
       let disk = readProcessDiskCounters(pid: pid)
       if let disk {
         currentDisk[pid] = disk
@@ -356,14 +361,43 @@ actor SystemSampler {
           networkDownloadTotal: network?.read ?? 0,
           networkUploadTotal: network?.written ?? 0,
           threadCount: readThreadCount(pid: pid),
-          runtime: parseElapsed(String(fields[4]))
+          runtime: parseElapsed(String(fields[4])),
+          software: software
         ))
     }
 
     previousProcessDisk = currentDisk
     previousProcessNetwork = currentNetwork
     cachedProcessPaths = currentPaths
-    return rows
+    return inheritInstalledSoftwareForUnidentifiedChildren(rows)
+  }
+
+  private func inheritInstalledSoftwareForUnidentifiedChildren(_ rows: [ProcessRow])
+    -> [ProcessRow]
+  {
+    let rowsByPID = Dictionary(uniqueKeysWithValues: rows.map { ($0.pid, $0) })
+
+    func installedAncestor(for process: ProcessRow) -> SoftwareIdentity? {
+      guard process.software.origin == .unknown else { return nil }
+      var parentPID = process.parentPID
+      var visited = Set<Int32>()
+      for _ in 0..<6 {
+        guard visited.insert(parentPID).inserted, let parent = rowsByPID[parentPID] else {
+          return nil
+        }
+        if parent.software.origin == .installedSoftware {
+          return parent.software
+        }
+        guard parent.software.origin == .unknown else { return nil }
+        parentPID = parent.parentPID
+      }
+      return nil
+    }
+
+    return rows.map { process in
+      guard let inherited = installedAncestor(for: process) else { return process }
+      return process.replacing(software: inherited)
+    }
   }
 
   private func readExecutablePath(pid: Int32) -> String? {

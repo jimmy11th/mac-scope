@@ -21,16 +21,16 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.4.8-1677ff" alt="Version 0.4.8">
+  <img src="https://img.shields.io/badge/version-0.4.9-1677ff" alt="Version 0.4.9">
   <img src="https://img.shields.io/badge/macOS-13%2B-111111?logo=apple" alt="macOS 13+">
   <img src="https://img.shields.io/badge/SwiftUI%20%2B%20AppKit-Native-f05138?logo=swift" alt="SwiftUI and AppKit">
   <img src="https://img.shields.io/badge/language-English%20%7C%20简体中文-34c759" alt="English and Simplified Chinese">
 </p>
 
 > [!TIP]
-> **0.4.8 新增原生菜单栏看板。** 无需打开主窗口，也能随时查看 CPU、内存、磁盘、网络、温度和 Top 进程。
+> **0.4.9 新增进程来源识别和软件分类视图。** 区分系统软件或服务、已安装软件、插件或工具，并聚合查看同一软件的关联进程与资源占用。
 
-MacScope 把一台 Mac 最值得关注的状态集中在一个清爽的原生界面中。它由 SwiftUI 与 AppKit 构建，不包含 Electron、内置浏览器或额外运行时；无需终端、Python 和 Homebrew，安装后即可使用。0.4.8 的 DMG 约 `3.8 MB`，轻巧，但该有的监控与维护能力都在。
+MacScope 把一台 Mac 最值得关注的状态集中在一个清爽的原生界面中。它由 SwiftUI 与 AppKit 构建，不包含 Electron、内置浏览器或额外运行时；无需终端、Python 和 Homebrew，安装后即可使用。0.4.9 的 DMG 约 `3.9 MB`，轻巧，但该有的监控与维护能力都在。
 
 ![MacScope 系统概览、资源状态与进程排行](docs/images/macscope-overview.png)
 
@@ -73,7 +73,9 @@ MacScope 把一台 Mac 最值得关注的状态集中在一个清爽的原生界
 
 - 集中查看进程名称、PID、CPU、内存、磁盘读写、网络上下行、线程数和运行时间。
 - 点击任意表头升序或降序排序，快速找到资源占用最高的进程。
-- 按名称或 PID 搜索，Top 行数可设置为 5、10、20 或 50。
+- 区分系统软件或服务、已安装软件、插件或工具及其他来源，并支持来源筛选。
+- 按软件分类关联进程，汇总 CPU、内存、磁盘与网络占用，展开后可继续按表头排序子进程。
+- 按进程、软件名称、Bundle ID 或 PID 搜索，Top 行数可设置为 5、10、20 或 50。
 - 双击进程打开详情，查看最近 1 分钟的 CPU、内存与 I/O 趋势。
 - 支持正常退出与强制退出，并在执行前进行确认。
 
@@ -209,7 +211,7 @@ native/scripts/build_dmg.sh release
 默认输出：
 
 ```text
-native/build/MacScope-0.4.8.dmg
+native/build/MacScope-0.4.9.dmg
 ```
 
 仓库仍保留早期 Python/Textual 终端版本用于兼容与历史参考，但它不是当前原生应用的运行依赖。
