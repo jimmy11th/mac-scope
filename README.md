@@ -32,7 +32,7 @@
 
 MacScope 把一台 Mac 最值得关注的状态集中在一个清爽的原生界面中。它由 SwiftUI 与 AppKit 构建，不包含 Electron、内置浏览器或额外运行时；无需终端、Python 和 Homebrew，安装后即可使用。0.4.9 的 DMG 约 `3.9 MB`，轻巧，但该有的监控与维护能力都在。
 
-![MacScope 系统概览、资源状态与进程排行](docs/images/macscope-overview.png)
+![MacScope 系统概览、资源状态与进程排行](docs/images/macscope-overview-0.4.9.png)
 
 ## 为什么选择 MacScope
 
