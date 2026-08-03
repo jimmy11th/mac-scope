@@ -13,10 +13,11 @@ struct MaintenanceActivityInlineView: View {
 
   private var issueCount: Int {
     guard let activity else { return 0 }
-    return max(
+    return [
       activity.failures.count,
-      activity.entries.filter { $0.state == .failed }.count
-    )
+      activity.scanIssues.count,
+      activity.entries.filter { $0.state == .failed }.count,
+    ].max() ?? 0
   }
 
   private var showsEntries: Bool {
@@ -71,9 +72,35 @@ struct MaintenanceActivityInlineView: View {
               .truncationMode(.middle)
           }
 
-          if store.needsFullDiskAccess {
-            Button(action: SystemPermission.openFullDiskAccessSettings) {
-              Label("Open Full Disk Access", systemImage: "lock.open")
+          if hasRecoveryActions(for: activity) {
+            HStack(spacing: 8) {
+              if store.needsFilesAndFoldersAccess {
+                Button(action: SystemPermission.openFilesAndFoldersSettings) {
+                  Label("Open Files & Folders Settings", systemImage: "folder.badge.gearshape")
+                }
+              }
+
+              if store.needsFullDiskAccess {
+                Button(action: SystemPermission.openFullDiskAccessSettings) {
+                  Label("Open Full Disk Access", systemImage: "lock.open")
+                }
+              }
+
+              if store.needsScanFolderAccess {
+                Button {
+                  AppWindowActions.openSettings(tab: "cleanup")
+                } label: {
+                  Label("Manage Scan Folders", systemImage: "folder.badge.gearshape")
+                }
+              }
+
+              if canRetryScan(activity) {
+                Button {
+                  store.retryScan(tool: tool, settings: settings)
+                } label: {
+                  Label("Scan Again", systemImage: "arrow.clockwise")
+                }
+              }
             }
           }
         }
@@ -193,6 +220,19 @@ struct MaintenanceActivityInlineView: View {
     case .cancelled:
       return false
     }
+  }
+
+  private func hasRecoveryActions(for activity: MaintenanceActivity) -> Bool {
+    store.needsFilesAndFoldersAccess
+      || store.needsFullDiskAccess
+      || store.needsScanFolderAccess
+      || canRetryScan(activity)
+  }
+
+  private func canRetryScan(_ activity: MaintenanceActivity) -> Bool {
+    activity.operation == .scan
+      && activity.phase == .completed
+      && !activity.scanIssues.isEmpty
   }
 
   @ViewBuilder

@@ -9,6 +9,16 @@ enum AdministratorAuthorizationResult: Sendable {
 
 enum SystemPermission {
   @MainActor
+  static func openFilesAndFoldersSettings() {
+    guard
+      let url = URL(
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders"
+      )
+    else { return }
+    NSWorkspace.shared.open(url)
+  }
+
+  @MainActor
   static func openFullDiskAccessSettings() {
     guard
       let url = URL(

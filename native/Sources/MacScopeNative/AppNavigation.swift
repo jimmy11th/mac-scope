@@ -5,6 +5,10 @@ import SwiftUI
 
 enum AppDestination: String, CaseIterable, Identifiable, Sendable {
   case overview
+  case systemInfo
+  case battery
+  case ports
+  case downloads
   case junk
   case applications
   case largeFiles
@@ -16,6 +20,10 @@ enum AppDestination: String, CaseIterable, Identifiable, Sendable {
   var title: LocalizedStringKey {
     switch self {
     case .overview: "Overview"
+    case .systemInfo: "System Information"
+    case .battery: "Battery Health"
+    case .ports: "Ports"
+    case .downloads: "Downloads Cleanup"
     case .junk: "Junk Cleanup"
     case .applications: "Applications"
     case .largeFiles: "Large Files"
@@ -27,6 +35,10 @@ enum AppDestination: String, CaseIterable, Identifiable, Sendable {
   var systemImage: String {
     switch self {
     case .overview: "gauge.with.dots.needle.50percent"
+    case .systemInfo: "desktopcomputer"
+    case .battery: "battery.100percent"
+    case .ports: "network"
+    case .downloads: "arrow.down.circle"
     case .junk: "trash"
     case .applications: "app.dashed"
     case .largeFiles: "externaldrive.badge.exclamationmark"
@@ -78,6 +90,15 @@ enum AppWindowActions {
   }
 
   static func openSettings() {
+    showSettings()
+  }
+
+  static func openSettings(tab: String) {
+    UserDefaults.standard.set(tab, forKey: "native.settingsTab")
+    showSettings()
+  }
+
+  private static func showSettings() {
     activate()
     let didOpen = NSApp.sendAction(
       Selector(("showSettingsWindow:")),

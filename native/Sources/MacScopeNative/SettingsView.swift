@@ -338,6 +338,25 @@ struct SettingsView: View {
         }
       }
 
+      Section("Files & Folders") {
+        VStack(alignment: .leading, spacing: 10) {
+          Text(
+            "Controls access to Desktop, Documents, and Downloads when they are used as scan folders."
+          )
+          .foregroundStyle(.secondary)
+
+          VStack(alignment: .leading, spacing: 6) {
+            permissionInstruction(1, "Open Files & Folders settings.")
+            permissionInstruction(2, "Turn on the folders MacScope needs to scan.")
+            permissionInstruction(3, "Return to MacScope and scan again.")
+          }
+
+          Button(action: SystemPermission.openFilesAndFoldersSettings) {
+            Label("Open Files & Folders Settings", systemImage: "arrow.up.forward.app")
+          }
+        }
+      }
+
       Section("Full Disk Access") {
         VStack(alignment: .leading, spacing: 10) {
           Text("Allow MacScope to scan protected cleanup files and application leftovers.")
@@ -448,12 +467,9 @@ struct SettingsView: View {
         .padding(.vertical, 6)
       }
 
-      Section("Project") {
+      Section("Developer Homepage") {
         Link(destination: AppLinks.author) {
           GitHubLinkLabel(title: "Author: shenmuoso")
-        }
-        Link(destination: AppLinks.github) {
-          GitHubLinkLabel(title: "Project: mac-scope")
         }
       }
 
@@ -465,6 +481,9 @@ struct SettingsView: View {
         }
         Button(action: AppLinks.openGitHub) {
           GitHubLinkLabel(title: "View Project on GitHub")
+        }
+        Button(action: AppLinks.openNewIssue) {
+          GitHubLinkLabel(title: "Report an Issue")
         }
         Button {
           AboutPanel.show(language: settings.language)

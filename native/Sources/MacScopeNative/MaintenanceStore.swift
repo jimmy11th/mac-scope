@@ -8,7 +8,8 @@ final class MaintenanceStore: ObservableObject {
   @Published private(set) var applications: [ApplicationRecord] = []
   @Published private(set) var largeFileItems: [MaintenanceItem] = []
   @Published private(set) var duplicateItems: [MaintenanceItem] = []
-  @Published private(set) var errorsByTool: [MaintenanceTool: [String]] = [:]
+  @Published private(set) var downloadItems: [MaintenanceItem] = []
+  @Published private(set) var issuesByTool: [MaintenanceTool: [ScanIssue]] = [:]
   @Published private(set) var scannedTools: Set<MaintenanceTool> = []
   @Published var activity: MaintenanceActivity?
   @Published private(set) var memoryMessage = ""
@@ -24,13 +25,17 @@ final class MaintenanceStore: ObservableObject {
   }
 
   var needsFullDiskAccess: Bool {
-    if activity?.failures.contains(where: { $0.kind == .fullDiskAccess }) == true {
-      return true
-    }
-    return activity?.entries.contains { entry in
-      entry.state == .failed
-        && entry.detail.localizedCaseInsensitiveContains("operation not permitted")
-    } == true
+    activity?.failures.contains(where: { $0.kind == .fullDiskAccess }) == true
+      || activity?.scanIssues.contains(where: { $0.kind == .fullDiskAccess }) == true
+  }
+
+  var needsFilesAndFoldersAccess: Bool {
+    activity?.failures.contains(where: { $0.kind == .filesAndFolders }) == true
+      || activity?.scanIssues.contains(where: { $0.kind == .filesAndFolders }) == true
+  }
+
+  var needsScanFolderAccess: Bool {
+    activity?.scanIssues.contains(where: { $0.kind == .folderAccess }) == true
   }
 
   func updateLanguage(_ language: AppLanguage) {
@@ -81,6 +86,32 @@ final class MaintenanceStore: ObservableObject {
     }
   }
 
+  func scanDownloads(settings: AppSettings) {
+    let ageDays = settings.downloadCleanupAgeDays
+    beginScan(tool: .downloads, title: l("Scanning Downloads")) { [service] reporter in
+      try await service.scanDownloads(olderThanDays: ageDays, progress: reporter)
+    } apply: { result in
+      self.downloadItems = result.values
+    }
+  }
+
+  func retryScan(tool: MaintenanceTool, settings: AppSettings) {
+    switch tool {
+    case .junk:
+      scanJunk()
+    case .applications:
+      scanApplications()
+    case .largeFiles:
+      scanLargeFiles(settings: settings)
+    case .duplicates:
+      scanDuplicates(settings: settings)
+    case .downloads:
+      scanDownloads(settings: settings)
+    case .memory:
+      break
+    }
+  }
+
   func cleanJunk(_ items: [MaintenanceItem], settings: AppSettings) {
     let root = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library")
     beginCleanup(
@@ -109,6 +140,20 @@ final class MaintenanceStore: ObservableObject {
       items: items,
       cacheMode: .trash,
       roots: settings.scanFolderPaths.map { URL(fileURLWithPath: $0, isDirectory: true) }
+    )
+  }
+
+  func removeDownloads(_ items: [MaintenanceItem]) {
+    let downloads = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
+      "Downloads",
+      isDirectory: true
+    )
+    beginCleanup(
+      tool: .downloads,
+      title: l("Cleaning Downloads"),
+      items: items,
+      cacheMode: .trash,
+      roots: [downloads]
     )
   }
 
@@ -155,7 +200,8 @@ final class MaintenanceStore: ObservableObject {
       currentPath: l("Requesting macOS to release inactive file cache"),
       entries: [],
       reclaimedBytes: 0,
-      failures: []
+      failures: [],
+      scanIssues: []
     )
     operationTask = Task { [weak self, service] in
       guard let self else { return }
@@ -243,7 +289,8 @@ final class MaintenanceStore: ObservableObject {
       currentPath: l("Preparing scan"),
       entries: [],
       reclaimedBytes: 0,
-      failures: []
+      failures: [],
+      scanIssues: []
     )
     operationTask = Task(priority: .utility) { [weak self] in
       guard let self else { return }
@@ -254,28 +301,29 @@ final class MaintenanceStore: ObservableObject {
         guard !Task.isCancelled else { return }
         apply(result)
         scannedTools.insert(tool)
-        errorsByTool[tool] = result.errors
-        if result.errors.isEmpty {
+        issuesByTool[tool] = result.issues
+        if result.issues.isEmpty {
           activity = nil
           return
         }
         activity?.phase = .completed
         activity?.completed = result.scannedCount
         activity?.currentPath = l("Found %lld items", Int64(result.values.count))
-        activity?.entries = result.errors.prefix(50).enumerated().map { index, message in
+        activity?.scanIssues = result.issues
+        activity?.entries = result.issues.prefix(50).map { issue in
           ActivityEntry(
-            id: "error-\(index)",
-            name: l("Scan Warning"),
-            path: message,
+            id: issue.id,
+            name: scanIssueTitle(issue.kind),
+            path: issue.url.path,
             state: .failed,
-            detail: message
+            detail: issue.detail
           )
         }
       } catch is CancellationError {
         activity?.phase = .cancelled
         activity?.currentPath = l("Cancelled")
       } catch {
-        errorsByTool[tool] = [error.localizedDescription]
+        issuesByTool[tool] = []
         activity?.phase = .completed
         activity?.currentPath = error.localizedDescription
         activity?.entries = [
@@ -342,7 +390,8 @@ final class MaintenanceStore: ObservableObject {
         )
       },
       reclaimedBytes: 0,
-      failures: []
+      failures: [],
+      scanIssues: []
     )
     operationTask = Task { [weak self, service] in
       guard let self else { return }
@@ -383,6 +432,21 @@ final class MaintenanceStore: ObservableObject {
     }
   }
 
+  private func scanIssueTitle(_ kind: ScanIssueKind) -> String {
+    switch kind {
+    case .filesAndFolders:
+      l("Files & Folders Access Required")
+    case .fullDiskAccess:
+      l("Full Disk Access Required")
+    case .folderAccess:
+      l("Scan Folder Access Required")
+    case .unavailable:
+      l("Folder Unavailable")
+    case .other:
+      l("Scan Warning")
+    }
+  }
+
   private func removeCompleted(_ items: [MaintenanceItem], from tool: MaintenanceTool) {
     let ids = Set(items.map(\.id))
     switch tool {
@@ -396,6 +460,8 @@ final class MaintenanceStore: ObservableObject {
         .filter { $0.value.count > 1 }
         .map(\.key)
       duplicateItems.removeAll { !remainingGroups.contains($0.group) }
+    case .downloads:
+      downloadItems.removeAll { ids.contains($0.id) }
     case .applications:
       applications = applications.compactMap { record in
         if ids.contains(record.application.id) {

@@ -28,7 +28,7 @@ actor MaintenanceService {
     ]
 
     var items: [MaintenanceItem] = []
-    var errors: [String] = []
+    var issues: [ScanIssue] = []
     var scanned = 0
     for (root, kind, category) in definitions where fileManager.fileExists(atPath: root.path) {
       try Task.checkCancellation()
@@ -56,17 +56,17 @@ actor MaintenanceService {
           } catch is CancellationError {
             throw CancellationError()
           } catch {
-            errors.append("\(child.path): \(error.localizedDescription)")
+            issues.append(Self.scanIssue(at: child, error: error, home: home))
           }
         }
       } catch is CancellationError {
         throw CancellationError()
       } catch {
-        errors.append("\(root.path): \(error.localizedDescription)")
+        issues.append(Self.scanIssue(at: root, error: error, home: home))
       }
     }
     items.sort { $0.size > $1.size }
-    return ScanResult(values: items, errors: errors, scannedCount: scanned)
+    return ScanResult(values: items, issues: uniqueIssues(issues), scannedCount: scanned)
   }
 
   func scanApplications(progress: ScanReporter) async throws -> ScanResult<ApplicationRecord> {
@@ -83,7 +83,7 @@ actor MaintenanceService {
       Bundle.main.bundleURL.standardizedFileURL.path
     }
     var applications: [(item: MaintenanceItem, bundleID: String, version: String)] = []
-    var errors: [String] = []
+    var issues: [ScanIssue] = []
     var scanned = 0
 
     for root in roots where fileManager.fileExists(atPath: root.path) {
@@ -126,7 +126,7 @@ actor MaintenanceService {
               } catch is CancellationError {
                 throw CancellationError()
               } catch {
-                errors.append("\(child.path): \(error.localizedDescription)")
+                issues.append(Self.scanIssue(at: child, error: error, home: home))
               }
             } else if depth < 2 {
               stack.append((child, depth + 1))
@@ -135,7 +135,7 @@ actor MaintenanceService {
         } catch is CancellationError {
           throw CancellationError()
         } catch {
-          errors.append("\(directory.path): \(error.localizedDescription)")
+          issues.append(Self.scanIssue(at: directory, error: error, home: home))
         }
       }
     }
@@ -154,10 +154,11 @@ actor MaintenanceService {
         return lhs.item.url.path.localizedStandardCompare(rhs.item.url.path) == .orderedAscending
       }
       guard let application = orderedCopies.first else { continue }
-      let residues = try await residueItems(
+      let residueResult = try await residueItems(
         bundleID: application.bundleID,
         parentID: application.item.id
       )
+      issues.append(contentsOf: residueResult.issues)
       let copies = orderedCopies.dropFirst().map(\.item)
       let installedPaths = Set(orderedCopies.map { $0.item.url.standardizedFileURL.path })
       let isRunning = runningPaths.contains { installedPaths.contains($0) }
@@ -166,7 +167,7 @@ actor MaintenanceService {
           application: application.item,
           bundleIdentifier: application.bundleID,
           version: application.version,
-          residues: residues,
+          residues: residueResult.items,
           otherCopies: copies,
           isRunning: isRunning
         ))
@@ -174,7 +175,7 @@ actor MaintenanceService {
     records.sort {
       $0.application.name.localizedStandardCompare($1.application.name) == .orderedAscending
     }
-    return ScanResult(values: records, errors: errors, scannedCount: scanned)
+    return ScanResult(values: records, issues: uniqueIssues(issues), scannedCount: scanned)
   }
 
   func scanLargeFiles(
@@ -184,9 +185,20 @@ actor MaintenanceService {
   ) async throws -> ScanResult<MaintenanceItem> {
     let threshold = UInt64(thresholdMB) * 1_024 * 1_024
     var items: [MaintenanceItem] = []
-    var errors: [String] = []
+    var issues: [ScanIssue] = []
     var scanned = 0
-    for root in safeScanRoots(roots) where fileManager.fileExists(atPath: root.path) {
+    for root in safeScanRoots(roots) {
+      do {
+        _ = try fileManager.contentsOfDirectory(
+          at: root,
+          includingPropertiesForKeys: nil,
+          options: [.skipsHiddenFiles]
+        )
+      } catch {
+        issues.append(Self.scanIssue(at: root, error: error, home: home, configuredRoot: true))
+        continue
+      }
+      let scanHome = home
       let enumerator = fileManager.enumerator(
         at: root,
         includingPropertiesForKeys: [
@@ -194,7 +206,7 @@ actor MaintenanceService {
         ],
         options: [.skipsHiddenFiles, .skipsPackageDescendants]
       ) { url, error in
-        errors.append("\(url.path): \(error.localizedDescription)")
+        issues.append(Self.scanIssue(at: url, error: error, home: scanHome, configuredRoot: true))
         return true
       }
       while let file = enumerator?.nextObject() as? URL {
@@ -225,7 +237,7 @@ actor MaintenanceService {
       }
     }
     items.sort { $0.size > $1.size }
-    return ScanResult(values: items, errors: errors, scannedCount: scanned)
+    return ScanResult(values: items, issues: uniqueIssues(issues), scannedCount: scanned)
   }
 
   func scanDuplicates(
@@ -235,17 +247,28 @@ actor MaintenanceService {
   ) async throws -> ScanResult<MaintenanceItem> {
     let minimum = UInt64(minimumMB) * 1_024 * 1_024
     var bySize: [UInt64: [URL]] = [:]
-    var errors: [String] = []
+    var issues: [ScanIssue] = []
     var scanned = 0
     var identities = Set<String>()
 
-    for root in safeScanRoots(roots) where fileManager.fileExists(atPath: root.path) {
+    for root in safeScanRoots(roots) {
+      do {
+        _ = try fileManager.contentsOfDirectory(
+          at: root,
+          includingPropertiesForKeys: nil,
+          options: [.skipsHiddenFiles]
+        )
+      } catch {
+        issues.append(Self.scanIssue(at: root, error: error, home: home, configuredRoot: true))
+        continue
+      }
+      let scanHome = home
       let enumerator = fileManager.enumerator(
         at: root,
         includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey],
         options: [.skipsHiddenFiles, .skipsPackageDescendants]
       ) { url, error in
-        errors.append("\(url.path): \(error.localizedDescription)")
+        issues.append(Self.scanIssue(at: url, error: error, home: scanHome, configuredRoot: true))
         return true
       }
       while let file = enumerator?.nextObject() as? URL {
@@ -283,7 +306,9 @@ actor MaintenanceService {
         } catch is CancellationError {
           throw CancellationError()
         } catch {
-          errors.append("\(candidate.path): \(error.localizedDescription)")
+          issues.append(
+            Self.scanIssue(at: candidate, error: error, home: home, configuredRoot: true)
+          )
         }
       }
       for (digest, duplicates) in byHash where duplicates.count > 1 {
@@ -304,7 +329,141 @@ actor MaintenanceService {
     items.sort { lhs, rhs in
       lhs.group == rhs.group ? lhs.url.path < rhs.url.path : lhs.size > rhs.size
     }
-    return ScanResult(values: items, errors: errors, scannedCount: scanned)
+    return ScanResult(values: items, issues: uniqueIssues(issues), scannedCount: scanned)
+  }
+
+  func scanDownloads(
+    olderThanDays: Int,
+    progress: ScanReporter
+  ) async throws -> ScanResult<MaintenanceItem> {
+    let root = home.appendingPathComponent("Downloads", isDirectory: true)
+    var issues: [ScanIssue] = []
+    let children: [URL]
+    do {
+      children = try fileManager.contentsOfDirectory(
+        at: root,
+        includingPropertiesForKeys: [
+          .isRegularFileKey,
+          .isSymbolicLinkKey,
+          .fileSizeKey,
+          .contentModificationDateKey,
+        ],
+        options: [.skipsHiddenFiles]
+      )
+    } catch {
+      let issue = Self.scanIssue(at: root, error: error, home: home, configuredRoot: true)
+      return ScanResult(values: [], issues: [issue], scannedCount: 0)
+    }
+
+    var candidates: [DownloadCandidate] = []
+    var scanned = 0
+    for child in children {
+      try Task.checkCancellation()
+      do {
+        let values = try child.resourceValues(forKeys: [
+          .isRegularFileKey,
+          .isSymbolicLinkKey,
+          .fileSizeKey,
+          .contentModificationDateKey,
+        ])
+        guard values.isRegularFile == true, values.isSymbolicLink != true else { continue }
+        let size = UInt64(max(0, values.fileSize ?? 0))
+        let modified = values.contentModificationDate ?? .distantPast
+        candidates.append(DownloadCandidate(url: child, size: size, modified: modified))
+        scanned += 1
+        if scanned.isMultiple(of: 20) {
+          await progress(ScanProgress(scannedCount: scanned, currentPath: child.path))
+        }
+      } catch {
+        issues.append(Self.scanIssue(at: child, error: error, home: home, configuredRoot: true))
+      }
+    }
+
+    var duplicateHashes: [String: String] = [:]
+    let candidatesBySize = Dictionary(grouping: candidates.filter { $0.size > 0 }, by: \.size)
+    for sameSize in candidatesBySize.values where sameSize.count > 1 {
+      var filesByHash: [String: [DownloadCandidate]] = [:]
+      for candidate in sameSize {
+        try Task.checkCancellation()
+        do {
+          let digest = try await hashFile(candidate.url)
+          filesByHash[digest, default: []].append(candidate)
+          await progress(ScanProgress(scannedCount: scanned, currentPath: candidate.url.path))
+        } catch is CancellationError {
+          throw CancellationError()
+        } catch {
+          issues.append(
+            Self.scanIssue(at: candidate.url, error: error, home: home, configuredRoot: true)
+          )
+        }
+      }
+      for (digest, matches) in filesByHash where matches.count > 1 {
+        for match in matches {
+          duplicateHashes[match.url.standardizedFileURL.path] = digest
+        }
+      }
+    }
+
+    let cutoff = Date().addingTimeInterval(-Double(max(1, olderThanDays)) * 86_400)
+    let installerExtensions: Set<String> = ["dmg", "pkg", "mpkg", "iso"]
+    let archiveExtensions: Set<String> = ["zip", "rar", "7z", "tar", "gz", "bz2", "xz", "tgz"]
+    let incompleteExtensions: Set<String> = ["download", "crdownload", "part"]
+    var items: [MaintenanceItem] = []
+
+    for candidate in candidates {
+      let path = candidate.url.standardizedFileURL.path
+      let fileExtension = candidate.url.pathExtension.lowercased()
+      let category: String
+      let group: String
+      if let digest = duplicateHashes[path] {
+        category = "Duplicate Download"
+        group = String(digest.prefix(12))
+      } else if incompleteExtensions.contains(fileExtension) {
+        category = "Incomplete Download"
+        group = ""
+      } else if installerExtensions.contains(fileExtension) {
+        category = "Installer"
+        group = ""
+      } else if archiveExtensions.contains(fileExtension) {
+        category = "Archive"
+        group = ""
+      } else if candidate.size >= 1_024 * 1_024 * 1_024 {
+        category = "Large Download"
+        group = ""
+      } else if candidate.modified < cutoff {
+        category = "Old Download"
+        group = ""
+      } else {
+        continue
+      }
+
+      do {
+        let identity = try fileIdentity(candidate.url)
+        items.append(
+          makeItem(
+            kind: .download,
+            category: category,
+            url: candidate.url,
+            size: candidate.size,
+            identity: identity,
+            group: group
+          )
+        )
+      } catch {
+        issues.append(
+          Self.scanIssue(at: candidate.url, error: error, home: home, configuredRoot: true)
+        )
+      }
+    }
+
+    items.sort { lhs, rhs in
+      if lhs.category != rhs.category {
+        return lhs.category.localizedStandardCompare(rhs.category) == .orderedAscending
+      }
+      if lhs.size != rhs.size { return lhs.size > rhs.size }
+      return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+    }
+    return ScanResult(values: items, issues: uniqueIssues(issues), scannedCount: scanned)
   }
 
   func cleanup(
@@ -417,9 +576,9 @@ actor MaintenanceService {
   }
 
   private func residueItems(bundleID: String, parentID: String) async throws
-    -> [MaintenanceItem]
+    -> (items: [MaintenanceItem], issues: [ScanIssue])
   {
-    guard !bundleID.isEmpty else { return [] }
+    guard !bundleID.isEmpty else { return ([], []) }
     let library = home.appendingPathComponent("Library", isDirectory: true)
     let candidates: [(URL, String)] = [
       (library.appendingPathComponent("Caches/\(bundleID)"), "Cache"),
@@ -434,23 +593,30 @@ actor MaintenanceService {
       (library.appendingPathComponent("WebKit/\(bundleID)"), "Web Data"),
     ]
     var items: [MaintenanceItem] = []
+    var issues: [ScanIssue] = []
     for (url, category) in candidates {
       guard fileManager.fileExists(atPath: url.path) else { continue }
-      let (size, _) = try await pathSize(url)
-      let identity = try fileIdentity(url)
-      items.append(
-        makeItem(
-          kind: .residue,
-          category: category,
-          url: url,
-          size: size,
-          identity: identity,
-          group: bundleID,
-          parentID: parentID
+      do {
+        let (size, _) = try await pathSize(url)
+        let identity = try fileIdentity(url)
+        items.append(
+          makeItem(
+            kind: .residue,
+            category: category,
+            url: url,
+            size: size,
+            identity: identity,
+            group: bundleID,
+            parentID: parentID
+          )
         )
-      )
+      } catch is CancellationError {
+        throw CancellationError()
+      } catch {
+        issues.append(Self.scanIssue(at: url, error: error, home: home))
+      }
     }
-    return items
+    return (items, issues)
   }
 
   private func applicationMetadata(_ url: URL) -> (bundleID: String, name: String, version: String)
@@ -559,6 +725,77 @@ actor MaintenanceService {
     }
   }
 
+  private static func scanIssue(
+    at url: URL,
+    error: Error,
+    home: URL,
+    configuredRoot: Bool = false
+  ) -> ScanIssue {
+    let errors = errorChain(error as NSError)
+    let isUnavailable = errors.contains { error in
+      (error.domain == NSCocoaErrorDomain
+        && (error.code == NSFileNoSuchFileError || error.code == NSFileReadNoSuchFileError))
+        || (error.domain == NSPOSIXErrorDomain && error.code == Int(ENOENT))
+    }
+    let isPermissionDenied = errors.contains { error in
+      (error.domain == NSCocoaErrorDomain
+        && (error.code == NSFileReadNoPermissionError
+          || error.code == NSFileWriteNoPermissionError))
+        || (error.domain == NSPOSIXErrorDomain
+          && (error.code == Int(EACCES) || error.code == Int(EPERM)))
+    }
+
+    let kind: ScanIssueKind
+    if isUnavailable {
+      kind = .unavailable
+    } else if isPermissionDenied
+      && filesAndFoldersRoots(home: home).contains(where: { contains(url, in: $0) })
+    {
+      kind = .filesAndFolders
+    } else if isPermissionDenied
+      && contains(url, in: home.appendingPathComponent("Library", isDirectory: true))
+    {
+      kind = .fullDiskAccess
+    } else if isPermissionDenied && configuredRoot {
+      kind = .folderAccess
+    } else {
+      kind = .other
+    }
+
+    return ScanIssue(
+      url: url.standardizedFileURL,
+      kind: kind,
+      detail: error.localizedDescription
+    )
+  }
+
+  private static func filesAndFoldersRoots(home: URL) -> [URL] {
+    ["Desktop", "Documents", "Downloads"].map {
+      home.appendingPathComponent($0, isDirectory: true).standardizedFileURL
+    }
+  }
+
+  private static func contains(_ url: URL, in root: URL) -> Bool {
+    let path = url.standardizedFileURL.path
+    let rootPath = root.standardizedFileURL.path
+    return path == rootPath || path.hasPrefix(rootPath + "/")
+  }
+
+  private static func errorChain(_ error: NSError) -> [NSError] {
+    var errors: [NSError] = []
+    var nextError: NSError? = error
+    while let current = nextError {
+      errors.append(current)
+      nextError = current.userInfo[NSUnderlyingErrorKey] as? NSError
+    }
+    return errors
+  }
+
+  private func uniqueIssues(_ issues: [ScanIssue]) -> [ScanIssue] {
+    var ids = Set<ScanIssue.ID>()
+    return issues.filter { ids.insert($0.id).inserted }
+  }
+
   private func validate(_ item: MaintenanceItem, allowedRoots: [URL]) throws {
     guard fileManager.fileExists(atPath: item.url.path) else {
       throw MaintenanceServiceError.notFound
@@ -606,6 +843,10 @@ actor MaintenanceService {
       item.url.standardizedFileURL.path.hasPrefix(home.appendingPathComponent("Library").path + "/")
     {
       kind = .fullDiskAccess
+    } else if permissionDenied,
+      Self.filesAndFoldersRoots(home: home).contains(where: { Self.contains(item.url, in: $0) })
+    {
+      kind = .filesAndFolders
     } else if permissionDenied, item.kind == .application,
       item.url.path.hasPrefix("/Applications/")
     {
@@ -617,6 +858,12 @@ actor MaintenanceService {
     }
     return MaintenanceFailure(item: item, kind: kind, detail: error.localizedDescription)
   }
+}
+
+private struct DownloadCandidate: Sendable {
+  let url: URL
+  let size: UInt64
+  let modified: Date
 }
 
 private enum MaintenanceServiceError: LocalizedError {

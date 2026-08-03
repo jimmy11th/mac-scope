@@ -5,6 +5,7 @@ enum MaintenanceTool: String, CaseIterable, Identifiable, Sendable {
   case applications
   case largeFiles
   case duplicates
+  case downloads
   case memory
 
   var id: String { rawValue }
@@ -19,6 +20,7 @@ enum MaintenanceItemKind: String, Codable, Sendable {
   case residue
   case largeFile
   case duplicate
+  case download
 }
 
 struct FileIdentity: Hashable, Sendable {
@@ -91,9 +93,27 @@ struct ApplicationRecord: Identifiable, Hashable, Sendable {
   }
 }
 
+enum ScanIssueKind: String, Hashable, Sendable {
+  case filesAndFolders
+  case fullDiskAccess
+  case folderAccess
+  case unavailable
+  case other
+}
+
+struct ScanIssue: Identifiable, Hashable, Sendable {
+  let url: URL
+  let kind: ScanIssueKind
+  let detail: String
+
+  var id: String {
+    "\(kind.rawValue):\(url.standardizedFileURL.path)"
+  }
+}
+
 struct ScanResult<Value: Sendable>: Sendable {
   let values: [Value]
-  let errors: [String]
+  let issues: [ScanIssue]
   let scannedCount: Int
 }
 
@@ -109,6 +129,7 @@ enum MaintenanceFailureKind: String, Sendable {
   case running
   case administratorRequired
   case fullDiskAccess
+  case filesAndFolders
   case permission
   case operationFailed
 }
@@ -176,6 +197,7 @@ struct MaintenanceActivity: Identifiable, Sendable {
   var entries: [ActivityEntry]
   var reclaimedBytes: UInt64
   var failures: [MaintenanceFailure]
+  var scanIssues: [ScanIssue]
 
   var progress: Double? {
     total > 0 ? Double(completed) / Double(total) : nil

@@ -31,7 +31,14 @@ struct MenuBarDashboardView: View {
       footer
     }
     .frame(width: 390, height: panelHeight)
-    .background(Color(nsColor: .windowBackgroundColor))
+    .background {
+      if #available(macOS 26.0, *) {
+        Color.clear
+      } else {
+        MenuBarPanelMaterialView()
+          .allowsHitTesting(false)
+      }
+    }
     .onAppear {
       updateProcessSampling()
     }

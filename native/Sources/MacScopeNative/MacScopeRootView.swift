@@ -29,7 +29,13 @@ struct MacScopeRootView: View {
           Section("Monitor") {
             sidebarRow(.overview)
           }
+          Section("Hardware") {
+            sidebarRow(.systemInfo)
+            sidebarRow(.battery)
+          }
           Section("System Tools") {
+            sidebarRow(.ports)
+            sidebarRow(.downloads)
             sidebarRow(.junk)
             sidebarRow(.applications)
             sidebarRow(.largeFiles)
@@ -104,6 +110,14 @@ struct MacScopeRootView: View {
     switch navigation.destination {
     case .overview:
       DashboardView()
+    case .systemInfo:
+      HardwareInfoView()
+    case .battery:
+      BatteryHealthView()
+    case .ports:
+      PortToolView()
+    case .downloads:
+      DownloadCleanupView()
     case .junk:
       JunkCleanupView()
     case .applications:

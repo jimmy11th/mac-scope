@@ -68,6 +68,7 @@ final class AppSettings: ObservableObject {
     static let cacheCleanupMode = "native.cacheCleanupMode"
     static let largeFileThresholdMB = "native.largeFileThresholdMB"
     static let duplicateMinimumMB = "native.duplicateMinimumMB"
+    static let downloadCleanupAgeDays = "native.downloadCleanupAgeDays"
     static let scanFolderPaths = "native.scanFolderPaths"
     static let confirmsCleanup = "native.confirmsCleanup"
   }
@@ -145,6 +146,10 @@ final class AppSettings: ObservableObject {
 
   @Published var duplicateMinimumMB: Int {
     didSet { defaults.set(duplicateMinimumMB, forKey: Key.duplicateMinimumMB) }
+  }
+
+  @Published var downloadCleanupAgeDays: Int {
+    didSet { defaults.set(downloadCleanupAgeDays, forKey: Key.downloadCleanupAgeDays) }
   }
 
   @Published var scanFolderPaths: [String] {
@@ -239,6 +244,9 @@ final class AppSettings: ObservableObject {
     duplicateMinimumMB =
       [1, 10, 100, 500].contains(savedDuplicateMinimum)
       ? savedDuplicateMinimum : 10
+    let savedDownloadAge = defaults.integer(forKey: Key.downloadCleanupAgeDays)
+    downloadCleanupAgeDays = [7, 30, 90, 180].contains(savedDownloadAge)
+      ? savedDownloadAge : 30
 
     let savedFolders = defaults.stringArray(forKey: Key.scanFolderPaths) ?? []
     scanFolderPaths = savedFolders.isEmpty ? Self.defaultScanFolderPaths : savedFolders
@@ -266,6 +274,7 @@ final class AppSettings: ObservableObject {
     cacheCleanupMode = .trash
     largeFileThresholdMB = 500
     duplicateMinimumMB = 10
+    downloadCleanupAgeDays = 30
     scanFolderPaths = Self.defaultScanFolderPaths
     confirmsCleanup = true
   }

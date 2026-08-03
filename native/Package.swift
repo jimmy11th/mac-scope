@@ -20,6 +20,7 @@ let package = Package(
     .executableTarget(
       name: "MacScopeNative",
       linkerSettings: [
+        .linkedFramework("CoreWLAN"),
         .linkedFramework("IOKit"),
         .linkedFramework("ServiceManagement"),
       ]
