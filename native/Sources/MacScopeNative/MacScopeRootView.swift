@@ -58,11 +58,14 @@ struct MacScopeRootView: View {
         .ignoresSafeArea()
         .allowsHitTesting(false)
       }
-      .navigationSplitViewColumnWidth(min: 180, ideal: 210, max: 260)
+      .navigationSplitViewColumnWidth(min: 210, ideal: 238, max: 280)
     } detail: {
       detailContent
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background {
+          Color(nsColor: .windowBackgroundColor)
+            .ignoresSafeArea()
+        }
         .clipped()
     }
     .navigationSplitViewStyle(.balanced)
@@ -90,7 +93,13 @@ struct MacScopeRootView: View {
   }
 
   private func sidebarRow(_ item: AppDestination) -> some View {
-    Label(item.title, systemImage: item.systemImage)
+    HStack(spacing: 10) {
+      SidebarItemIcon(systemImage: item.systemImage, color: item.iconColor)
+
+      Text(item.title)
+        .lineLimit(1)
+    }
+      .padding(.vertical, 2)
       .tag(item)
       .listRowBackground(Color.clear)
   }

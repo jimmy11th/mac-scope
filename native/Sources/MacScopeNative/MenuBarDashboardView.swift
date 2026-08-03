@@ -61,7 +61,7 @@ struct MenuBarDashboardView: View {
 
   private var header: some View {
     HStack(spacing: 11) {
-      MenuBarLogo(color: settings.activeTheme.accentColor)
+      MenuBarLogo(color: dashboardLogoColor)
         .frame(width: 27, height: 27)
 
       VStack(alignment: .leading, spacing: 2) {
@@ -86,6 +86,7 @@ struct MenuBarDashboardView: View {
           .frame(width: 20, height: 20)
       }
       .buttonStyle(.borderless)
+      .foregroundStyle(.primary)
       .help(monitor.isPaused ? "Resume Monitoring" : "Pause Monitoring")
 
       Button(action: { monitor.refreshNow() }) {
@@ -93,6 +94,7 @@ struct MenuBarDashboardView: View {
           .frame(width: 20, height: 20)
       }
       .buttonStyle(.borderless)
+      .foregroundStyle(.primary)
       .help("Refresh Now")
       .disabled(monitor.isRefreshing)
     }
@@ -115,6 +117,7 @@ struct MenuBarDashboardView: View {
         Label("Open MacScope", systemImage: "macwindow")
       }
       .buttonStyle(.borderless)
+      .foregroundStyle(.primary)
 
       Spacer()
 
@@ -123,6 +126,7 @@ struct MenuBarDashboardView: View {
           .frame(width: 20, height: 20)
       }
       .buttonStyle(.borderless)
+      .foregroundStyle(.primary)
       .help("Settings")
 
       Button {
@@ -132,10 +136,15 @@ struct MenuBarDashboardView: View {
           .frame(width: 20, height: 20)
       }
       .buttonStyle(.borderless)
+      .foregroundStyle(.primary)
       .help("Quit MacScope")
     }
     .padding(.horizontal, 14)
     .frame(height: 50)
+  }
+
+  private var dashboardLogoColor: Color {
+    settings.menuBarColorfulMode ? settings.activeTheme.accentColor : .primary
   }
 
   private func updateProcessSampling() {
@@ -210,6 +219,21 @@ private struct MenuBarMetricRow: View {
   private var presentation: MetricPresentation {
     let snapshot = metrics.snapshot
     let theme = settings.activeTheme
+    let neutralAccent = Color.primary.opacity(0.68)
+    let neutralProgress = Color.primary.opacity(0.5)
+
+    func accent(_ colorfulColor: Color) -> Color {
+      settings.menuBarColorfulMode ? colorfulColor : neutralAccent
+    }
+
+    func emphasizedValue(_ colorfulColor: Color) -> Color {
+      settings.menuBarColorfulMode ? colorfulColor : .primary
+    }
+
+    func progress(_ colorfulColor: Color) -> Color {
+      settings.menuBarColorfulMode ? colorfulColor : neutralProgress
+    }
+
     switch module {
     case .cpu:
       return MetricPresentation(
@@ -219,10 +243,12 @@ private struct MenuBarMetricRow: View {
           DisplayFormat.percent(snapshot.cpu.user),
           DisplayFormat.percent(snapshot.cpu.system)
         ),
-        accentColor: theme.cpuColor,
+        accentColor: accent(theme.cpuColor),
         valueColor: .primary,
         progress: snapshot.cpu.total / 100,
-        progressColor: MetricColorScale.utilization(fraction: snapshot.cpu.total / 100)
+        progressColor: progress(
+          MetricColorScale.utilization(fraction: snapshot.cpu.total / 100)
+        )
       )
     case .memory:
       return MetricPresentation(
@@ -232,28 +258,32 @@ private struct MenuBarMetricRow: View {
           DisplayFormat.bytes(snapshot.memory.used),
           DisplayFormat.bytes(snapshot.memory.total)
         ),
-        accentColor: theme.memoryColor,
+        accentColor: accent(theme.memoryColor),
         valueColor: .primary,
         progress: snapshot.memory.fraction,
-        progressColor: MetricColorScale.utilization(fraction: snapshot.memory.fraction)
+        progressColor: progress(
+          MetricColorScale.utilization(fraction: snapshot.memory.fraction)
+        )
       )
     case .disk:
       return MetricPresentation(
         value: DisplayFormat.percent(snapshot.disk.fraction * 100),
         detail:
           "↓ \(DisplayFormat.rate(snapshot.disk.readRate))  ↑ \(DisplayFormat.rate(snapshot.disk.writeRate))",
-        accentColor: theme.diskColor,
+        accentColor: accent(theme.diskColor),
         valueColor: .primary,
         progress: snapshot.disk.fraction,
-        progressColor: MetricColorScale.utilization(fraction: snapshot.disk.fraction)
+        progressColor: progress(
+          MetricColorScale.utilization(fraction: snapshot.disk.fraction)
+        )
       )
     case .network:
       let totalRate = snapshot.network.downloadRate + snapshot.network.uploadRate
       return MetricPresentation(
         value: "↓ \(DisplayFormat.rate(snapshot.network.downloadRate))",
         detail: "↑ \(DisplayFormat.rate(snapshot.network.uploadRate))",
-        accentColor: theme.networkColor,
-        valueColor: MetricColorScale.network(rate: totalRate),
+        accentColor: accent(theme.networkColor),
+        valueColor: emphasizedValue(MetricColorScale.network(rate: totalRate)),
         progress: nil,
         progressColor: .clear
       )
@@ -262,8 +292,8 @@ private struct MenuBarMetricRow: View {
       return MetricPresentation(
         value: DisplayFormat.temperature(temperature, unit: settings.temperatureUnit) ?? "--",
         detail: temperatureStatus(snapshot.cpu.temperature.status),
-        accentColor: MetricColorScale.temperature(celsius: temperature),
-        valueColor: MetricColorScale.temperature(celsius: temperature),
+        accentColor: accent(MetricColorScale.temperature(celsius: temperature)),
+        valueColor: emphasizedValue(MetricColorScale.temperature(celsius: temperature)),
         progress: nil,
         progressColor: .clear
       )

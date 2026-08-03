@@ -57,6 +57,7 @@ final class AppSettings: ObservableObject {
     static let menuBarModules = "native.menuBarModules"
     static let menuBarProcessSort = "native.menuBarProcessSort"
     static let menuBarProcessLimit = "native.menuBarProcessLimit"
+    static let menuBarColorfulMode = "native.menuBarColorfulMode"
     static let sidebarTransparencyEnabled = "native.sidebarTransparencyEnabled"
     static let sidebarTransparency = "native.sidebarTransparency"
     static let refreshInterval = "native.refreshInterval"
@@ -110,6 +111,10 @@ final class AppSettings: ObservableObject {
 
   @Published var menuBarProcessLimit: Int {
     didSet { defaults.set(menuBarProcessLimit, forKey: Key.menuBarProcessLimit) }
+  }
+
+  @Published var menuBarColorfulMode: Bool {
+    didSet { defaults.set(menuBarColorfulMode, forKey: Key.menuBarColorfulMode) }
   }
 
   @Published var sidebarTransparencyEnabled: Bool {
@@ -200,6 +205,7 @@ final class AppSettings: ObservableObject {
     menuBarProcessLimit =
       [3, 5, 8, 10].contains(savedMenuBarProcessLimit)
       ? savedMenuBarProcessLimit : 5
+    menuBarColorfulMode = defaults.bool(forKey: Key.menuBarColorfulMode)
     sidebarTransparencyEnabled =
       defaults.object(forKey: Key.sidebarTransparencyEnabled) == nil
       ? true : defaults.bool(forKey: Key.sidebarTransparencyEnabled)
@@ -265,6 +271,7 @@ final class AppSettings: ObservableObject {
     menuBarModules = [.cpu, .memory, .disk, .network, .temperature, .processes]
     menuBarProcessSort = .cpu
     menuBarProcessLimit = 5
+    menuBarColorfulMode = false
     sidebarTransparencyEnabled = true
     sidebarTransparency = 0.7
     refreshInterval = 2

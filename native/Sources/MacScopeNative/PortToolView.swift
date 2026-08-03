@@ -35,25 +35,6 @@ struct PortToolView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      SystemToolHeader(
-        "Ports",
-        subtitle: "Listening TCP and UDP ports on this Mac."
-      ) {
-        Picker("Protocol", selection: $transportFilter) {
-          Text("All").tag("all")
-          Text("TCP").tag("tcp")
-          Text("UDP").tag("udp")
-        }
-        .pickerStyle(.segmented)
-        .frame(width: 170)
-
-        Button(action: store.refresh) {
-          Label("Refresh", systemImage: "arrow.clockwise")
-        }
-        .disabled(store.isLoading)
-      }
-      Divider()
-
       if store.isLoading && store.records.isEmpty {
         ProgressView("Reading Listening Ports")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -107,6 +88,23 @@ struct PortToolView: View {
     }
     .navigationTitle("Ports")
     .searchable(text: $searchText, prompt: "Search Ports and Software")
+    .toolbar {
+      ToolbarItemGroup(placement: .primaryAction) {
+        Picker("Protocol", selection: $transportFilter) {
+          Text("All").tag("all")
+          Text("TCP").tag("tcp")
+          Text("UDP").tag("udp")
+        }
+        .pickerStyle(.segmented)
+        .frame(width: 170)
+
+        Button(action: store.refresh) {
+          Label("Refresh", systemImage: "arrow.clockwise")
+        }
+        .help("Refresh")
+        .disabled(store.isLoading)
+      }
+    }
     .onAppear(perform: store.refresh)
     .alert("Force quit this process?", isPresented: $confirmsForceQuit) {
       Button("Cancel", role: .cancel) {}

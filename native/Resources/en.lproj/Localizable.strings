@@ -221,6 +221,11 @@
 "Scan Again" = "Scan Again";
 "Authorize and Retry" = "Authorize and Retry";
 "Done" = "Done";
+"View Results" = "View Results";
+"Items Processed" = "Items Processed";
+"Data Handled" = "Data Handled";
+"Needs Attention" = "Needs Attention";
+"Resolve Issues" = "Resolve Issues";
 "Scanning Junk" = "Scanning Junk";
 "Scanning Applications" = "Scanning Applications";
 "Scanning Large Files" = "Scanning Large Files";
@@ -326,6 +331,7 @@
 "Menu Bar Values" = "Menu Bar Values";
 "Selected" = "Selected";
 "Dashboard" = "Dashboard";
+"Colorful mode" = "Colorful mode";
 "CPU Usage" = "CPU Usage";
 "Memory Usage" = "Memory Usage";
 "Disk Activity" = "Disk Activity";

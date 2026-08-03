@@ -221,6 +221,11 @@
 "Scan Again" = "重新扫描";
 "Authorize and Retry" = "授权并重试";
 "Done" = "完成";
+"View Results" = "查看结果";
+"Items Processed" = "已处理项目";
+"Data Handled" = "处理容量";
+"Needs Attention" = "需要处理";
+"Resolve Issues" = "处理问题";
 "Scanning Junk" = "正在扫描垃圾";
 "Scanning Applications" = "正在扫描应用程序";
 "Scanning Large Files" = "正在扫描大文件";
@@ -326,6 +331,7 @@
 "Menu Bar Values" = "菜单栏指标";
 "Selected" = "已选择";
 "Dashboard" = "看板";
+"Colorful mode" = "彩色模式";
 "CPU Usage" = "CPU 占用率";
 "Memory Usage" = "内存占用率";
 "Disk Activity" = "磁盘活动";

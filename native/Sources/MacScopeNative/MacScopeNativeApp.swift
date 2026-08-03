@@ -35,7 +35,11 @@ struct MacScopeNativeApp: App {
         .environment(\.locale, runtime.settings.language.locale)
         .preferredColorScheme(runtime.settings.appearance.colorScheme)
         .tint(runtime.settings.activeTheme.accentColor)
-        .frame(width: 700, height: 560)
+        .frame(width: 840, height: 620)
+        .background {
+          SidebarHostingWindowConfigurationView()
+            .allowsHitTesting(false)
+        }
     }
 
     MenuBarExtra(

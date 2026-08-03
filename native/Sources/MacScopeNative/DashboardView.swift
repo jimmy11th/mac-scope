@@ -896,9 +896,12 @@ private struct MetricView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       HStack(spacing: 8) {
-        Label(title, systemImage: systemImage)
+        Image(systemName: systemImage)
           .font(.subheadline.weight(.semibold))
           .foregroundStyle(color)
+        Text(title)
+          .font(.subheadline.weight(.semibold))
+          .foregroundStyle(.primary)
         Spacer(minLength: 0)
         if let accessory {
           Text(accessory)

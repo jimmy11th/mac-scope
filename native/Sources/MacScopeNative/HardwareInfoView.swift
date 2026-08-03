@@ -6,23 +6,7 @@ struct HardwareInfoView: View {
   @StateObject private var store = HardwareInfoStore()
 
   var body: some View {
-    VStack(spacing: 0) {
-      SystemToolHeader(
-        "System Information",
-        subtitle: "Hardware, displays, storage, and wireless connections."
-      ) {
-        Button(action: copySummary) {
-          Label("Copy Summary", systemImage: "doc.on.doc")
-        }
-        .disabled(store.snapshot == nil)
-
-        Button(action: store.refresh) {
-          Label("Refresh", systemImage: "arrow.clockwise")
-        }
-        .disabled(store.isLoading)
-      }
-      Divider()
-
+    Group {
       if let snapshot = store.snapshot {
         hardwareList(snapshot)
       } else if store.isLoading {
@@ -37,9 +21,27 @@ struct HardwareInfoView: View {
           Button("Try Again", action: store.refresh)
             .buttonStyle(.borderedProminent)
         }
+      } else {
+        ProgressView("Loading System Information")
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
       }
     }
     .navigationTitle("System Information")
+    .toolbar {
+      ToolbarItemGroup(placement: .primaryAction) {
+        Button(action: copySummary) {
+          Label("Copy Summary", systemImage: "doc.on.doc")
+        }
+        .help("Copy Summary")
+        .disabled(store.snapshot == nil)
+
+        Button(action: store.refresh) {
+          Label("Refresh", systemImage: "arrow.clockwise")
+        }
+        .help("Refresh")
+        .disabled(store.isLoading)
+      }
+    }
     .onAppear {
       if store.snapshot == nil {
         store.refresh()
@@ -48,7 +50,26 @@ struct HardwareInfoView: View {
   }
 
   private func hardwareList(_ snapshot: HardwareSnapshot) -> some View {
-    List {
+    Form {
+      Section {
+        HStack(spacing: 16) {
+          Image(systemName: "desktopcomputer")
+            .font(.system(size: 32, weight: .medium))
+            .foregroundStyle(.tint)
+            .frame(width: 44)
+
+          VStack(alignment: .leading, spacing: 3) {
+            Text(snapshot.machineName)
+              .font(.headline)
+            Text("\(snapshot.chipName) · \(DisplayFormat.bytes(snapshot.memoryBytes))")
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+          }
+          Spacer(minLength: 0)
+        }
+        .padding(.vertical, 6)
+      }
+
       Section("Mac") {
         infoRow("Model", value: snapshot.machineName, systemImage: "laptopcomputer")
         infoRow("Model Identifier", value: snapshot.modelIdentifier, systemImage: "number")
@@ -198,7 +219,10 @@ struct HardwareInfoView: View {
         }
       }
     }
-    .listStyle(.inset)
+    .formStyle(.grouped)
+    .frame(maxWidth: 880)
+    .frame(maxWidth: .infinity)
+    .background(Color(nsColor: .windowBackgroundColor))
     .compactNativeScrollers()
   }
 
@@ -314,18 +338,7 @@ struct BatteryHealthView: View {
   @StateObject private var store = BatteryInfoStore()
 
   var body: some View {
-    VStack(spacing: 0) {
-      SystemToolHeader(
-        "Battery Health",
-        subtitle: "Charge, capacity, cycle count, and power information."
-      ) {
-        Button(action: store.refresh) {
-          Label("Refresh", systemImage: "arrow.clockwise")
-        }
-        .disabled(store.isLoading)
-      }
-      Divider()
-
+    Group {
       if let battery = store.snapshot {
         batteryList(battery)
       } else if store.isLoading || !store.hasLoaded {
@@ -342,11 +355,20 @@ struct BatteryHealthView: View {
       }
     }
     .navigationTitle("Battery Health")
+    .toolbar {
+      ToolbarItem(placement: .primaryAction) {
+        Button(action: store.refresh) {
+          Label("Refresh", systemImage: "arrow.clockwise")
+        }
+        .help("Refresh")
+        .disabled(store.isLoading)
+      }
+    }
     .onAppear(perform: store.refresh)
   }
 
   private func batteryList(_ battery: BatterySnapshot) -> some View {
-    List {
+    Form {
       Section("Current Charge") {
         VStack(alignment: .leading, spacing: 8) {
           HStack {
@@ -417,7 +439,10 @@ struct BatteryHealthView: View {
         }
       }
     }
-    .listStyle(.inset)
+    .formStyle(.grouped)
+    .frame(maxWidth: 760)
+    .frame(maxWidth: .infinity)
+    .background(Color(nsColor: .windowBackgroundColor))
     .compactNativeScrollers()
   }
 

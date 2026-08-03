@@ -33,9 +33,9 @@ struct SystemToolHeader<Actions: View>: View {
     HStack(alignment: .center, spacing: 20) {
       VStack(alignment: .leading, spacing: 3) {
         Text(title)
-          .font(.title2.weight(.semibold))
+          .font(.headline)
         Text(subtitle)
-          .font(.subheadline)
+          .font(.caption)
           .foregroundStyle(.secondary)
       }
       Spacer(minLength: 20)
@@ -43,8 +43,9 @@ struct SystemToolHeader<Actions: View>: View {
         actions
       }
     }
-    .padding(.horizontal, 20)
-    .padding(.vertical, 16)
+    .padding(.horizontal, 16)
+    .padding(.vertical, 10)
+    .background(.bar)
   }
 }
 
@@ -119,6 +120,6 @@ struct SystemToolStatusBar<Actions: View>: View {
     }
     .padding(.horizontal, 14)
     .frame(height: 46)
-    .background(Color(nsColor: .controlBackgroundColor))
+    .background(.bar)
   }
 }

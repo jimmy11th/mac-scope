@@ -37,25 +37,6 @@ struct DownloadCleanupView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      SystemToolHeader(
-        "Downloads Cleanup",
-        subtitle: "Review installers, archives, duplicates, incomplete downloads, and old files."
-      ) {
-        Picker("Older Than", selection: $settings.downloadCleanupAgeDays) {
-          Text("7 Days").tag(7)
-          Text("30 Days").tag(30)
-          Text("90 Days").tag(90)
-          Text("180 Days").tag(180)
-        }
-        .frame(width: 150)
-
-        Button(action: scan) {
-          Label("Scan Downloads", systemImage: "magnifyingglass")
-        }
-        .disabled(store.isBusy)
-      }
-      Divider()
-
       MaintenanceActivityInlineView(tool: .downloads)
 
       if store.downloadItems.isEmpty {
@@ -79,6 +60,23 @@ struct DownloadCleanupView: View {
     }
     .navigationTitle("Downloads Cleanup")
     .searchable(text: $searchText, prompt: "Search Downloads")
+    .toolbar {
+      ToolbarItemGroup(placement: .primaryAction) {
+        Picker("Older Than", selection: $settings.downloadCleanupAgeDays) {
+          Text("7 Days").tag(7)
+          Text("30 Days").tag(30)
+          Text("90 Days").tag(90)
+          Text("180 Days").tag(180)
+        }
+        .frame(width: 150)
+
+        Button(action: scan) {
+          Label("Scan Downloads", systemImage: "magnifyingglass")
+        }
+        .help("Scan Downloads")
+        .disabled(store.isBusy)
+      }
+    }
     .onChange(of: store.downloadItems.map(\.id)) { ids in
       selectedIDs.formIntersection(ids)
       if categoryFilter != "All",

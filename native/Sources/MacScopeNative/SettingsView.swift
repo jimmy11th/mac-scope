@@ -1,6 +1,52 @@
 import AppKit
 import SwiftUI
 
+private enum SettingsPane: String, CaseIterable, Identifiable {
+  case general
+  case menuBar
+  case appearance
+  case cleanup
+  case permissions
+  case about
+
+  var id: String { rawValue }
+
+  var title: LocalizedStringKey {
+    switch self {
+    case .general: "General"
+    case .menuBar: "Menu Bar"
+    case .appearance: "Appearance"
+    case .cleanup: "Cleanup"
+    case .permissions: "Permission Management"
+    case .about: "About"
+    }
+  }
+
+  var systemImage: String {
+    switch self {
+    case .general: "gear"
+    case .menuBar: "switch.2"
+    case .appearance: "circle.lefthalf.filled"
+    case .cleanup: "trash"
+    case .permissions: "hand.raised.fill"
+    case .about: "info.circle"
+    }
+  }
+
+  var iconColor: Color {
+    switch self {
+    case .general, .about:
+      Color(nsColor: .systemGray)
+    case .menuBar:
+      Color(nsColor: .systemPurple)
+    case .appearance, .permissions:
+      Color(nsColor: .systemBlue)
+    case .cleanup:
+      Color(nsColor: .systemRed)
+    }
+  }
+}
+
 struct SettingsView: View {
   @EnvironmentObject private var settings: AppSettings
   @EnvironmentObject private var metrics: SystemMetricsStore
@@ -11,43 +57,102 @@ struct SettingsView: View {
   @State private var selectedScanFolder: String?
   @State private var confirmsReset = false
 
-  var body: some View {
-    VStack(spacing: 0) {
-      TabView(selection: $selectedTab) {
-        generalSettings
-          .tabItem { Label("General", systemImage: "gearshape") }
-          .tag("general")
-        menuBarSettings
-          .tabItem { Label("Menu Bar", systemImage: "menubar.rectangle") }
-          .tag("menuBar")
-        appearanceSettings
-          .tabItem { Label("Appearance", systemImage: "paintpalette") }
-          .tag("appearance")
-        cleanupSettings
-          .tabItem { Label("Cleanup", systemImage: "trash") }
-          .tag("cleanup")
-        permissionSettings
-          .tabItem { Label("Permission Management", systemImage: "lock.shield") }
-          .tag("permissions")
-        aboutSettings
-          .tabItem { Label("About", systemImage: "info.circle") }
-          .tag("about")
-      }
-      Divider()
-      HStack {
-        Button("Reset All Settings", role: .destructive) {
-          confirmsReset = true
+  private var activePane: SettingsPane {
+    SettingsPane(rawValue: selectedTab) ?? .general
+  }
+
+  private var paneSelection: Binding<String?> {
+    Binding(
+      get: { selectedTab },
+      set: { value in
+        if let value, SettingsPane(rawValue: value) != nil {
+          selectedTab = value
         }
-        Spacer()
       }
-      .padding(12)
+    )
+  }
+
+  var body: some View {
+    NavigationSplitView {
+      VStack(spacing: 0) {
+        List(selection: paneSelection) {
+          Section {
+            ForEach(SettingsPane.allCases.filter { $0 != .about }) { pane in
+              settingsSidebarRow(pane)
+            }
+          }
+
+          Section {
+            settingsSidebarRow(.about)
+          }
+        }
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .compactNativeScrollers(clearsBackground: true)
+
+        Divider()
+        Text("Version \(AppMetadata.version)")
+          .font(.caption)
+          .foregroundStyle(.tertiary)
+          .monospacedDigit()
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.horizontal, 14)
+          .padding(.vertical, 10)
+      }
+      .background {
+        SidebarMaterialView(
+          isEnabled: settings.sidebarTransparencyEnabled,
+          transparency: settings.sidebarTransparency
+        )
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+      }
+      .navigationSplitViewColumnWidth(min: 180, ideal: 205, max: 230)
+    } detail: {
+      settingsDetail
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+          Color(nsColor: .windowBackgroundColor)
+            .ignoresSafeArea()
+        }
+        .navigationTitle(activePane.title)
     }
+    .navigationSplitViewStyle(.balanced)
     .alert("Reset all settings?", isPresented: $confirmsReset) {
       Button("Reset", role: .destructive, action: settings.resetAll)
       Button("Cancel", role: .cancel) {}
     } message: {
       Text(
         "Monitoring, menu bar, appearance, and cleanup preferences will return to their defaults.")
+    }
+  }
+
+  private func settingsSidebarRow(_ pane: SettingsPane) -> some View {
+    HStack(spacing: 10) {
+      SidebarItemIcon(systemImage: pane.systemImage, color: pane.iconColor)
+
+      Text(pane.title)
+        .lineLimit(1)
+    }
+    .padding(.vertical, 2)
+    .tag(pane.rawValue)
+  }
+
+  @ViewBuilder
+  private var settingsDetail: some View {
+    switch activePane {
+    case .general:
+      generalSettings
+    case .menuBar:
+      menuBarSettings
+    case .appearance:
+      appearanceSettings
+    case .cleanup:
+      cleanupSettings
+    case .permissions:
+      permissionSettings
+    case .about:
+      aboutSettings
     }
   }
 
@@ -76,6 +181,12 @@ struct SettingsView: View {
         Picker("Temperature", selection: $settings.temperatureUnit) {
           Text("Celsius").tag(TemperatureUnit.celsius)
           Text("Fahrenheit").tag(TemperatureUnit.fahrenheit)
+        }
+      }
+
+      Section {
+        Button("Reset All Settings", role: .destructive) {
+          confirmsReset = true
         }
       }
     }
@@ -205,6 +316,8 @@ struct SettingsView: View {
       .disabled(!settings.menuBarEnabled || settings.menuBarDisplayMode == .iconOnly)
 
       Section("Dashboard") {
+        Toggle("Colorful mode", isOn: $settings.menuBarColorfulMode)
+
         ForEach(settings.orderedMenuBarModules) { module in
           let isSelected = settings.menuBarModules.contains(module)
           MenuBarConfigurationRow(

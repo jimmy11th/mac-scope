@@ -26,7 +26,7 @@ struct MainWindowConfigurationView: NSViewRepresentable {
       window.contentMinSize = NSSize(width: 1_020, height: 620)
       window.contentResizeIncrements = NSSize(width: 1, height: 1)
       window.collectionBehavior.insert(.fullScreenPrimary)
-      window.isOpaque = true
+      window.isOpaque = false
       window.backgroundColor = .windowBackgroundColor
       window.titlebarAppearsTransparent = false
       window.toolbarStyle = .unified
@@ -37,6 +37,28 @@ struct MainWindowConfigurationView: NSViewRepresentable {
       }
 
       _ = window.setFrameAutosaveName("MacScope.MainWindow")
+    }
+  }
+}
+
+struct SidebarHostingWindowConfigurationView: NSViewRepresentable {
+  func makeNSView(context: Context) -> NSView {
+    let view = NSView(frame: .zero)
+    configureWhenAttached(view)
+    return view
+  }
+
+  func updateNSView(_ view: NSView, context: Context) {
+    configureWhenAttached(view)
+  }
+
+  private func configureWhenAttached(_ view: NSView) {
+    DispatchQueue.main.async {
+      guard let window = view.window else { return }
+      window.isOpaque = false
+      window.backgroundColor = .windowBackgroundColor
+      window.titlebarAppearsTransparent = false
+      window.toolbarStyle = .unified
     }
   }
 }

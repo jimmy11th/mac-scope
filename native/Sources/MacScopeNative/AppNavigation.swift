@@ -46,6 +46,23 @@ enum AppDestination: String, CaseIterable, Identifiable, Sendable {
     case .memory: "memorychip"
     }
   }
+
+  var iconColor: Color {
+    switch self {
+    case .overview:
+      Color(nsColor: .black)
+    case .systemInfo:
+      Color(nsColor: .systemGray)
+    case .battery, .memory:
+      Color(nsColor: .systemGreen)
+    case .ports:
+      Color(nsColor: .systemBlue)
+    case .downloads, .junk, .largeFiles, .duplicates:
+      Color(nsColor: .systemRed)
+    case .applications:
+      Color(nsColor: .systemPurple)
+    }
+  }
 }
 
 struct ProcessInspectionRequest: Equatable, Identifiable, Sendable {
