@@ -7,6 +7,7 @@ struct MenuBarDashboardView: View {
   @EnvironmentObject private var metrics: SystemMetricsStore
   @EnvironmentObject private var settings: AppSettings
   @EnvironmentObject private var navigation: AppNavigation
+  @EnvironmentObject private var mihomo: MihomoStore
   @Environment(\.openWindow) private var openWindow
 
   var body: some View {
@@ -27,6 +28,8 @@ struct MenuBarDashboardView: View {
         }
       }
       .compactNativeScrollers(clearsBackground: true)
+      Divider()
+      quickTools
       Divider()
       footer
     }
@@ -56,7 +59,7 @@ struct MenuBarDashboardView: View {
       settings.menuBarModules.contains(.processes)
       ? 48 + CGFloat(settings.menuBarProcessLimit) * 32
       : 0
-    return min(650, max(250, 112 + CGFloat(metricCount) * 82 + processHeight))
+    return min(700, max(310, 174 + CGFloat(metricCount) * 82 + processHeight))
   }
 
   private var header: some View {
@@ -141,6 +144,44 @@ struct MenuBarDashboardView: View {
     }
     .padding(.horizontal, 14)
     .frame(height: 50)
+  }
+
+  private var quickTools: some View {
+    HStack(spacing: 10) {
+      Button {
+        settings.reverseMouseScroll.toggle()
+      } label: {
+        Label(
+          settings.reverseMouseScroll ? "Mouse Reverse On" : "Mouse Reverse Off",
+          systemImage: "computermouse"
+        )
+      }
+      .buttonStyle(.borderless)
+
+      Spacer()
+
+      Button {
+        mihomo.status.isRunning ? mihomo.stop() : mihomo.start()
+      } label: {
+        Label(
+          mihomo.status.isRunning ? "Stop Mihomo" : "Start Mihomo",
+          systemImage: mihomo.status.isRunning ? "stop.circle" : "play.circle"
+        )
+      }
+      .buttonStyle(.borderless)
+      .disabled(mihomo.isBusy)
+
+      Button {
+        navigation.destination = .mihomo
+        openMainWindow()
+      } label: {
+        Image(systemName: "chevron.right.circle")
+      }
+      .buttonStyle(.borderless)
+      .help("Open Mihomo")
+    }
+    .padding(.horizontal, 14)
+    .frame(height: 60)
   }
 
   private var dashboardLogoColor: Color {

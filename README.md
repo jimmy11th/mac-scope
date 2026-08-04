@@ -142,6 +142,32 @@ MacScope 把一台 Mac 最值得关注的状态集中在一个清爽的原生界
 
 大文件和重复文件默认扫描当前用户的 `Downloads`、`Desktop`、`Documents` 和 `Movies`，也可以在设置中添加或移除扫描目录。
 
+### 开发服务与 VS Code 协作
+
+MacScope 可以直接读取 Warrior Local Services 与其 VS Code 扩展使用的 Profile，并共享受管进程状态：
+
+- 批量启动、停止和构建 monorepo 服务，区分 MacScope 托管进程与外部终端进程。
+- 查看端口、PID、编译就绪状态和最近日志；构建支持 Turbo filter 与 `--force`。
+- 查看 Git 分支、工作区改动和 ahead/behind 状态，执行 Fetch 与安全的 `pull --ff-only`。
+- 一键在 VS Code 中打开当前 Profile 的仓库。Profile 仍存放在 `~/Library/Application Support/warrior-local-services/profiles/`，不会产生第二份配置。
+- 可请求新的开发环境登录令牌并打开本地 SSO 测试页；密码只保存在 macOS 钥匙串中，不写入 Profile 或命令输出。
+
+### Mihomo 与鼠标工具
+
+- 原生托管 Mihomo 进程，保存前执行 `mihomo -t`，并提供配置备份和恢复。
+- 通过仅限回环地址的 `external-controller` 查看策略组、切换节点，并使用真实业务 URL 测试成功率、中位延迟和 P95。
+- 管理高优先级直连域名和带 MacScope 标记的站点路由块；热重载失败时恢复原配置，同时兼容旧 Warrior 标记和 `.warrior.bak`。
+- 可选择只反转物理鼠标滚轮；触控板连续滚动和惯性手势保持不变。
+
+Mihomo 控制功能要求配置中包含本机控制端口，例如：
+
+```yaml
+external-controller: 127.0.0.1:9090
+secret: "请设置本地控制密钥"
+```
+
+MacScope 不会把控制密钥发送到非回环地址。
+
 ## 常见使用场景
 
 - **Mac 突然发热：** 按 CPU 排序，找出持续高占用的进程，再查看它最近 1 分钟的活动。

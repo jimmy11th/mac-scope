@@ -50,6 +50,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
 struct SettingsView: View {
   @EnvironmentObject private var settings: AppSettings
   @EnvironmentObject private var metrics: SystemMetricsStore
+  @EnvironmentObject private var mouseScrollReverser: MouseScrollReverser
   @Environment(\.openWindow) private var openWindow
 
   @StateObject private var permissionManager = PermissionManager()
@@ -511,12 +512,35 @@ struct SettingsView: View {
             .foregroundStyle(.secondary)
         }
       }
+
+      Section("Input Monitoring") {
+        Toggle("Reverse physical mouse wheel", isOn: $settings.reverseMouseScroll)
+
+        Text("Trackpad scrolling and momentum gestures are not changed.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+
+        if mouseScrollReverser.state == .permissionRequired {
+          Label("Input Monitoring permission is required.", systemImage: "exclamationmark.triangle.fill")
+            .foregroundStyle(.orange)
+          Button {
+            mouseScrollReverser.openInputMonitoringSettings()
+          } label: {
+            Label("Open Input Monitoring Settings", systemImage: "arrow.up.forward.app")
+          }
+        } else if mouseScrollReverser.state == .active {
+          Label("Mouse wheel reversal is active.", systemImage: "checkmark.circle.fill")
+            .foregroundStyle(.green)
+        }
+      }
     }
     .formStyle(.grouped)
     .padding(8)
     .onAppear(perform: permissionManager.refresh)
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) {
-      _ in permissionManager.refresh()
+      _ in
+      permissionManager.refresh()
+      mouseScrollReverser.refreshPermission()
     }
   }
 

@@ -33,6 +33,8 @@
     <string>13.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSInputMonitoringUsageDescription</key>
+    <string>MacScope uses Input Monitoring only to reverse physical mouse wheel events when you enable that feature.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>

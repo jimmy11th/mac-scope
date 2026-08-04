@@ -14,6 +14,8 @@ enum AppDestination: String, CaseIterable, Identifiable, Sendable {
   case largeFiles
   case duplicates
   case memory
+  case mihomo
+  case developerServices
 
   var id: String { rawValue }
 
@@ -29,6 +31,8 @@ enum AppDestination: String, CaseIterable, Identifiable, Sendable {
     case .largeFiles: "Large Files"
     case .duplicates: "Duplicates"
     case .memory: "Memory"
+    case .mihomo: "Mihomo"
+    case .developerServices: "Developer Services"
     }
   }
 
@@ -44,6 +48,8 @@ enum AppDestination: String, CaseIterable, Identifiable, Sendable {
     case .largeFiles: "externaldrive.badge.exclamationmark"
     case .duplicates: "doc.on.doc"
     case .memory: "memorychip"
+    case .mihomo: "network.badge.shield.half.filled"
+    case .developerServices: "server.rack"
     }
   }
 
@@ -55,8 +61,10 @@ enum AppDestination: String, CaseIterable, Identifiable, Sendable {
       Color(nsColor: .systemGray)
     case .battery, .memory:
       Color(nsColor: .systemGreen)
-    case .ports:
+    case .ports, .mihomo:
       Color(nsColor: .systemBlue)
+    case .developerServices:
+      Color(nsColor: .systemOrange)
     case .downloads, .junk, .largeFiles, .duplicates:
       Color(nsColor: .systemRed)
     case .applications:

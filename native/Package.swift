@@ -23,6 +23,7 @@ let package = Package(
         .linkedFramework("CoreWLAN"),
         .linkedFramework("IOKit"),
         .linkedFramework("ServiceManagement"),
+        .linkedFramework("Security"),
       ]
     ),
     .testTarget(

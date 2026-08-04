@@ -42,6 +42,10 @@ struct MacScopeRootView: View {
             sidebarRow(.duplicates)
             sidebarRow(.memory)
           }
+          Section("Developer Tools") {
+            sidebarRow(.developerServices)
+            sidebarRow(.mihomo)
+          }
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
@@ -137,6 +141,10 @@ struct MacScopeRootView: View {
       FileCleanupView(tool: .duplicates)
     case .memory:
       MemoryToolView()
+    case .mihomo:
+      MihomoView()
+    case .developerServices:
+      DeveloperServicesView()
     }
   }
 

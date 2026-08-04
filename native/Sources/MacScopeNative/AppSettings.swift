@@ -72,6 +72,7 @@ final class AppSettings: ObservableObject {
     static let downloadCleanupAgeDays = "native.downloadCleanupAgeDays"
     static let scanFolderPaths = "native.scanFolderPaths"
     static let confirmsCleanup = "native.confirmsCleanup"
+    static let reverseMouseScroll = "native.reverseMouseScroll"
   }
 
   @Published var language: AppLanguage {
@@ -163,6 +164,10 @@ final class AppSettings: ObservableObject {
 
   @Published var confirmsCleanup: Bool {
     didSet { defaults.set(confirmsCleanup, forKey: Key.confirmsCleanup) }
+  }
+
+  @Published var reverseMouseScroll: Bool {
+    didSet { defaults.set(reverseMouseScroll, forKey: Key.reverseMouseScroll) }
   }
 
   var activeTheme: ThemePalette {
@@ -259,6 +264,7 @@ final class AppSettings: ObservableObject {
     confirmsCleanup =
       defaults.object(forKey: Key.confirmsCleanup) == nil
       ? true : defaults.bool(forKey: Key.confirmsCleanup)
+    reverseMouseScroll = defaults.bool(forKey: Key.reverseMouseScroll)
   }
 
   func resetAll() {
@@ -284,6 +290,7 @@ final class AppSettings: ObservableObject {
     downloadCleanupAgeDays = 30
     scanFolderPaths = Self.defaultScanFolderPaths
     confirmsCleanup = true
+    reverseMouseScroll = false
   }
 
   private static var defaultScanFolderPaths: [String] {
